@@ -609,13 +609,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
         {currentNote ? (
           <>
             {/* Editor Toolbar */}
-            <div className="h-14 border-b border-stone-800/80 px-6 flex items-center justify-between bg-gradient-to-r from-stone-950 via-stone-900/60 to-stone-950 shadow-xs shadow-black/30">
+            <div className="border-b border-stone-800/80 px-3 lg:px-6 py-2 lg:h-14 lg:py-0 flex flex-wrap items-center gap-2 justify-between bg-gradient-to-r from-stone-950 via-stone-900/60 to-stone-950 shadow-xs shadow-black/30">
               {/* Toolbar top-left */}
-            <div className="flex items-center space-x-2 lg:space-x-3">
+            <div className="flex items-center space-x-2 lg:space-x-3 min-w-0">
               {/* Mobile: open note list drawer */}
               <button
                 onClick={() => setMobileDrawer('list')}
-                className="lg:hidden p-2 rounded-xl bg-gradient-to-b from-stone-900 to-stone-950 hover:from-stone-850 hover:to-stone-900 text-stone-300 border border-stone-800 shadow-xs hover:border-stone-700 transition-all active:scale-95"
+                className="lg:hidden p-2 rounded-xl bg-gradient-to-b from-stone-900 to-stone-950 hover:from-stone-850 hover:to-stone-900 text-stone-300 border border-stone-800 shadow-xs hover:border-stone-700 transition-all active:scale-95 shrink-0"
                 title="노트 목록 열기"
               >
                 <Search className="w-4 h-4" />
@@ -661,7 +661,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
               </div>
 
               {/* Right Action Buttons */}
-              <div className="flex items-center space-x-1.5 lg:space-x-2">
+              <div className="flex flex-wrap items-center gap-1.5 lg:gap-2 ml-auto">
                 {saveSuccessMessage && (
                   <span className="hidden md:inline text-xs text-emerald-400 flex items-center space-x-1 animate-fade-in font-medium">
                     <CheckCircle2 className="w-3.5 h-3.5" />
@@ -785,17 +785,17 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   {isAnalyzing ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>AI 의미 파싱 중...</span>
+                      <span className="hidden sm:inline">AI 의미 파싱 중...</span>
                     </>
                   ) : isCurrentReadonly ? (
                     <>
                       <Shield className="w-3.5 h-3.5" />
-                      <span>편집 보호 중</span>
+                      <span className="hidden sm:inline">편집 보호 중</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>저장 & AI 분석</span>
+                      <span className="hidden sm:inline">저장 & AI 분석</span>
                     </>
                   )}
                 </button>
