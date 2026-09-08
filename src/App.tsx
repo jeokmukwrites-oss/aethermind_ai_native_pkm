@@ -42,6 +42,11 @@ export default function App() {
   const [showExitHint, setShowExitHint] = useState(false);
   const lastBackPressRef = useRef(0);
 
+  // Mobile-only screen within the 캡처 tab: list-first, drilling into the
+  // note editor on selection — kept in App (not EditorView) so it survives
+  // EditorView unmounting when the user switches tabs and back.
+  const [mobileScreen, setMobileScreen] = useState<'list' | 'note'>('list');
+
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     state: 'idle',
     lastSyncAt: null,
@@ -122,6 +127,10 @@ export default function App() {
         setIsImageModalOpen(false);
         return;
       }
+      if (activeTab === 'editor' && mobileScreen === 'note') {
+        setMobileScreen('list');
+        return;
+      }
       if (activeTab !== 'editor') {
         setActiveTab('editor');
         return;
@@ -138,7 +147,7 @@ export default function App() {
     return () => {
       void listenerPromise.then((h) => h.remove());
     };
-  }, [activeTab, isVoiceModalOpen, isImageModalOpen]);
+  }, [activeTab, isVoiceModalOpen, isImageModalOpen, mobileScreen]);
 
   // Load notes on mount
   useEffect(() => {
@@ -159,9 +168,16 @@ export default function App() {
 
   const currentNote = notes.find((n) => n.id === selectedNoteId) || null;
 
-  const handleSelectNote = (noteId: string) => {
+  // Every entry point that activates a specific note funnels through here so
+  // the mobile list→note screen transition never gets missed.
+  const openNoteInEditor = (noteId: string) => {
     setSelectedNoteId(noteId);
     setActiveTab('editor');
+    setMobileScreen('note');
+  };
+
+  const handleSelectNote = (noteId: string) => {
+    openNoteInEditor(noteId);
   };
 
   const handleSaveNote = async (updatedNote: Note) => {
@@ -187,6 +203,7 @@ export default function App() {
     setSelectedNoteId((prevSelected) => {
       if (prevSelected === noteId) {
         const remaining = notes.filter((n) => n.id !== noteId);
+        if (remaining.length === 0) setMobileScreen('list');
         return remaining[0]?.id || null;
       }
       return prevSelected;
@@ -217,8 +234,7 @@ export default function App() {
     };
 
     setNotes((prev) => [newNote, ...prev]);
-    setSelectedNoteId(newNote.id);
-    setActiveTab('editor');
+    openNoteInEditor(newNote.id);
     saveNoteToDB(newNote);
   };
 
@@ -232,6 +248,7 @@ export default function App() {
         updatedAt: new Date().toISOString(),
       };
       handleSaveNote(updated);
+      setMobileScreen('note');
     } else {
       const today = new Date().toISOString().split('T')[0];
       const newNote: Note = {
@@ -248,8 +265,7 @@ export default function App() {
         suggestedRelations: [],
       };
       handleSaveNote(newNote);
-      setSelectedNoteId(newNote.id);
-      setActiveTab('editor');
+      openNoteInEditor(newNote.id);
     }
   };
 
@@ -269,8 +285,7 @@ export default function App() {
       suggestedRelations: [],
     };
     handleSaveNote(newNote);
-    setSelectedNoteId(newNote.id);
-    setActiveTab('editor');
+    openNoteInEditor(newNote.id);
   };
 
   const handleCreateSynthesisNote = (title: string, content: string) => {
@@ -291,8 +306,7 @@ export default function App() {
       suggestedRelations: [],
     };
     handleSaveNote(newNote);
-    setSelectedNoteId(newNote.id);
-    setActiveTab('editor');
+    openNoteInEditor(newNote.id);
   };
 
   const reloadNotes = async () => {
@@ -328,6 +342,8 @@ export default function App() {
             onNewNote={handleNewNote}
             onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
             onOpenImageModal={() => setIsImageModalOpen(true)}
+            mobileScreen={mobileScreen}
+            onBackToList={() => setMobileScreen('list')}
           />
         )}
 

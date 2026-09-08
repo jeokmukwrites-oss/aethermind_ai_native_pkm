@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   RotateCcw,
   Columns,
+  ArrowLeft,
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { Note, NoteRelation } from '../types';
@@ -38,6 +39,8 @@ interface EditorViewProps {
   onNewNote: () => void;
   onOpenVoiceModal: () => void;
   onOpenImageModal: () => void;
+  mobileScreen: 'list' | 'note';
+  onBackToList: () => void;
 }
 
 export const EditorView: React.FC<EditorViewProps> = ({
@@ -49,6 +52,8 @@ export const EditorView: React.FC<EditorViewProps> = ({
   onNewNote,
   onOpenVoiceModal,
   onOpenImageModal,
+  mobileScreen,
+  onBackToList,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isPreview, setIsPreview] = useState(false);
@@ -68,8 +73,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const [unlockPinInput, setUnlockPinInput] = useState('');
   const [unlockPinError, setUnlockPinError] = useState<string | null>(null);
 
-  // Mobile drawer: 'list' (note list) or 'ai' (RealtimeSidebar)
-  const [mobileDrawer, setMobileDrawer] = useState<'list' | 'ai' | null>(null);
+  // Mobile-only AI copilot drawer (the note list is now its own top-level
+  // mobile screen — see `mobileScreen` prop — not a drawer).
+  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
 
   // Manage Lock Modal
   const [showManageLockModal, setShowManageLockModal] = useState(false);
@@ -80,12 +86,14 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const [manageError, setManageError] = useState<string | null>(null);
 
   // Android hardware/gesture back button closes whichever overlay below is
-  // currently open (top-most first) instead of exiting the app.
-  const closeMobileDrawer = useCallback(() => setMobileDrawer(null), []);
+  // currently open (top-most first) instead of exiting the app. Registered
+  // before App's own list<->note screen handling so an open overlay always
+  // wins over leaving the note screen.
+  const closeAiDrawer = useCallback(() => setIsAiDrawerOpen(false), []);
   const closeLockModal = useCallback(() => setShowLockModal(false), []);
   const closeManageLockModal = useCallback(() => setShowManageLockModal(false), []);
   const closeDeleteConfirm = useCallback(() => setNoteToDelete(null), []);
-  useBackHandler(mobileDrawer !== null, closeMobileDrawer);
+  useBackHandler(isAiDrawerOpen, closeAiDrawer);
   useBackHandler(showLockModal, closeLockModal);
   useBackHandler(showManageLockModal, closeManageLockModal);
   useBackHandler(noteToDelete !== null, closeDeleteConfirm);
@@ -550,9 +558,25 @@ export const EditorView: React.FC<EditorViewProps> = ({
             </div>
           );
         })}
-        {filteredNotes.length === 0 && (
+        {filteredNotes.length === 0 && notes.length > 0 && (
           <div className="p-6 text-center text-xs text-stone-500">
             일치하는 노트가 없습니다.
+          </div>
+        )}
+        {notes.length === 0 && (
+          <div className="p-8 text-center space-y-3">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-b from-stone-850 to-stone-900 border border-stone-800 flex items-center justify-center text-amber-400/80 shadow-lg shadow-black/40 ring-1 ring-white/5">
+              <Edit3 className="w-5 h-5" />
+            </div>
+            <p className="text-xs text-stone-500 leading-relaxed">
+              아직 노트가 없습니다. 첫 노트를 작성해보세요.
+            </p>
+            <button
+              onClick={onNewNote}
+              className="px-4 py-2 rounded-xl bg-gradient-to-b from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-950 text-xs font-bold shadow-md shadow-amber-950/40 active:scale-95 transition-all"
+            >
+              새 노트 작성하기
+            </button>
           </div>
         )}
       </div>
@@ -578,27 +602,15 @@ export const EditorView: React.FC<EditorViewProps> = ({
         {renderSearchAndNotesList()}
       </aside>
 
-      {/* Mobile Note List Drawer */}
-      {mobileDrawer === 'list' && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          <div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => setMobileDrawer(null)}
-          />
-          <div className="relative h-full w-[85%] max-w-[380px] border-r border-stone-800/80 bg-gradient-to-b from-stone-900/95 to-stone-950 shadow-2xl shadow-black/80 animate-slide-in-left flex flex-col z-10">
-            <div className="px-4 py-3 border-b border-stone-800/80 flex items-center justify-between bg-stone-900/80">
-              <span className="text-xs font-semibold text-stone-200">노트 목록</span>
-              <button
-                onClick={() => setMobileDrawer(null)}
-                className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            {renderSearchAndNotesList()}
-          </div>
-        </div>
-      )}
+      {/* Mobile List Screen: full-screen (not an overlay) — tapping a note or
+          "새 노트" drills into the Note Screen below; hardware back returns here. */}
+      <div
+        className={`lg:hidden flex-col h-full w-full bg-stone-950 ${
+          mobileScreen === 'list' ? 'flex' : 'hidden'
+        }`}
+      >
+        {renderSearchAndNotesList()}
+      </div>
 
       {/* Left-to-Center Resize Handle (Desktop only) */}
       <div
@@ -616,21 +628,25 @@ export const EditorView: React.FC<EditorViewProps> = ({
         />
       </div>
 
-      {/* Main Center Editor */}
-      <main className="flex-1 min-w-0 flex flex-col h-full bg-stone-950 overflow-hidden">
+      {/* Main Center Editor (Note Screen on mobile, always-on on desktop) */}
+      <main
+        className={`${
+          mobileScreen === 'note' ? 'flex' : 'hidden'
+        } lg:flex flex-1 min-w-0 flex-col h-full bg-stone-950 overflow-hidden`}
+      >
         {currentNote ? (
           <>
             {/* Editor Toolbar */}
             <div className="border-b border-stone-800/80 px-3 lg:px-6 py-2 lg:h-14 lg:py-0 flex flex-wrap items-center gap-2 justify-between bg-gradient-to-r from-stone-950 via-stone-900/60 to-stone-950 shadow-xs shadow-black/30">
               {/* Toolbar top-left */}
             <div className="flex items-center space-x-2 lg:space-x-3 min-w-0">
-              {/* Mobile: open note list drawer */}
+              {/* Mobile: back to note list screen */}
               <button
-                onClick={() => setMobileDrawer('list')}
+                onClick={onBackToList}
                 className="lg:hidden p-2 rounded-xl bg-gradient-to-b from-stone-900 to-stone-950 hover:from-stone-850 hover:to-stone-900 text-stone-300 border border-stone-800 shadow-xs hover:border-stone-700 transition-all active:scale-95 shrink-0"
-                title="노트 목록 열기"
+                title="노트 목록으로"
               >
-                <Search className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4" />
               </button>
 
               <div className="flex items-center space-x-1 bg-stone-950/90 p-1 rounded-xl border border-stone-800 shadow-inner shadow-black/40">
@@ -683,7 +699,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
                 {/* Mobile: open AI copilot drawer */}
                 <button
-                  onClick={() => setMobileDrawer('ai')}
+                  onClick={() => setIsAiDrawerOpen(true)}
                   className="lg:hidden p-2 rounded-xl bg-gradient-to-b from-amber-500/20 to-amber-950/30 hover:from-amber-500/30 hover:to-amber-900/40 text-amber-300 border border-amber-500/40 shadow-xs hover:border-amber-500/60 transition-all active:scale-95"
                   title="AI 코파일럿 열기"
                 >
@@ -971,17 +987,17 @@ export const EditorView: React.FC<EditorViewProps> = ({
       )}
 
       {/* Mobile AI Copilot Drawer */}
-      {currentNote && isCurrentUnlocked && mobileDrawer === 'ai' && (
+      {currentNote && isCurrentUnlocked && isAiDrawerOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex justify-end">
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => setMobileDrawer(null)}
+            onClick={() => setIsAiDrawerOpen(false)}
           />
           <div className="relative h-full w-[88%] max-w-[420px] bg-stone-950 border-l border-stone-800/80 shadow-2xl shadow-black/80 animate-slide-in-right flex flex-col z-10">
             <div className="px-4 py-3 border-b border-stone-800/80 flex items-center justify-between bg-stone-900/80">
               <span className="text-xs font-semibold text-stone-200">AI 코파일럿</span>
               <button
-                onClick={() => setMobileDrawer(null)}
+                onClick={() => setIsAiDrawerOpen(false)}
                 className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
               >
                 ✕
