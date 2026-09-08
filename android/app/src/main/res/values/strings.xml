@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AetherMind</string>
+    <string name="title_activity_main">AetherMind</string>
+    <string name="package_name">com.aethermind.pkm</string>
+    <string name="custom_url_scheme">com.aethermind.pkm</string>
+</resources>

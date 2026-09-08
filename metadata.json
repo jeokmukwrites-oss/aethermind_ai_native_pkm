@@ -1,0 +1,6 @@
+{
+  "name": "AetherMind - AI Native PKM",
+  "description": "옵시디언을 넘어서는 AI 네이티브 개인 지식관리 시스템. 실시간 RAG 제안, 시맨틱 관계 그래프, 대화형 회상 및 에이전틱 지식 정리.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
