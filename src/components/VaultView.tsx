@@ -19,7 +19,7 @@ import {
 import { Note } from '../types';
 import { seedInitialNotes } from '../lib/storage';
 import { SyncStatus } from '../lib/sync';
-import { getServerBaseUrl, setServerBaseUrl } from '../lib/config';
+import { getServerBaseUrl, setServerBaseUrl, getSyncToken, setSyncToken } from '../lib/config';
 import { useBackHandler } from '../lib/backHandler';
 
 interface VaultViewProps {
@@ -34,6 +34,7 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes, sync
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showResetModal, setShowResetModal] = useState(false);
   const [serverUrl, setUrl] = useState(getServerBaseUrl());
+  const [syncToken, setToken] = useState(getSyncToken());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Android hardware/gesture back button closes this modal instead of exiting the app.
@@ -94,7 +95,8 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes, sync
 
   const handleSaveServerUrl = () => {
     setServerBaseUrl(serverUrl);
-    setSuccessMessage('동기화 서버 주소가 저장되었습니다.');
+    setSyncToken(syncToken);
+    setSuccessMessage('동기화 서버 설정이 저장되었습니다.');
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
@@ -248,6 +250,7 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes, sync
             PC에서 실행 중인 AetherMind 서버가 병합 코디네이터 역할을 합니다. 노트는 저장 시 자동으로 백그라운드 동기화되고,
             충돌은 <span className="text-sky-300">최신 수정 시각(updatedAt) 기준</span>으로 자동 해결됩니다. 동기화 데이터는
             서버의 로컬 SQLite(<span className="font-mono text-stone-300">data/aethermind-sync.db</span>)에만 기록됩니다.
+            요청에는 인증 토큰이 필요하며, 서버를 시작할 때 터미널에 출력됩니다.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 pt-1">
@@ -263,6 +266,18 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes, sync
                 className="w-full px-3 py-2 rounded-lg bg-stone-950/70 border border-stone-700/80 text-xs text-stone-200 placeholder-stone-600 focus:outline-none focus:ring-1 focus:ring-sky-500/60 focus:border-sky-500/60"
               />
             </div>
+            <div className="flex-1">
+              <label className="block text-[10px] uppercase tracking-wider text-stone-500 font-mono mb-1.5">
+                인증 토큰 (서버 실행 시 터미널에 출력됨)
+              </label>
+              <input
+                type="password"
+                value={syncToken}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="서버 콘솔의 🔐 토큰을 붙여넣으세요"
+                className="w-full px-3 py-2 rounded-lg bg-stone-950/70 border border-stone-700/80 text-xs text-stone-200 placeholder-stone-600 focus:outline-none focus:ring-1 focus:ring-sky-500/60 focus:border-sky-500/60 font-mono"
+              />
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 pt-1">
@@ -272,7 +287,7 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes, sync
               className="px-4 py-2 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 text-xs font-semibold flex items-center space-x-2 transition-colors"
             >
               <Server className="w-4 h-4 text-sky-400" />
-              <span>서버 주소 저장</span>
+              <span>서버 설정 저장</span>
             </button>
 
             <button

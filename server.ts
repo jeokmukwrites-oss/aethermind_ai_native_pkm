@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
@@ -14,6 +15,35 @@ dotenv.config();
 // updatedAt with deletion tombstones.
 // ---------------------------------------------------------------------------
 const SYNC_DATA_DIR = path.join(process.cwd(), "data");
+
+// ---------------------------------------------------------------------------
+// API auth token — every /api/* call (sync + Gemini proxy) requires this as
+// `Authorization: Bearer <token>`, since anyone on the LAN can otherwise read/
+// write the whole vault and spend the Gemini quota. Set SYNC_TOKEN in .env to
+// pin it; otherwise a random token is generated once and persisted next to
+// the sync DB so it survives restarts.
+// ---------------------------------------------------------------------------
+const SYNC_TOKEN_FILE = path.join(SYNC_DATA_DIR, "sync-token");
+
+function getOrCreateSyncToken(): string {
+  if (process.env.SYNC_TOKEN) return process.env.SYNC_TOKEN.trim();
+  if (existsSync(SYNC_TOKEN_FILE)) {
+    const existing = readFileSync(SYNC_TOKEN_FILE, "utf-8").trim();
+    if (existing) return existing;
+  }
+  mkdirSync(SYNC_DATA_DIR, { recursive: true });
+  const token = randomBytes(24).toString("hex");
+  writeFileSync(SYNC_TOKEN_FILE, token, "utf-8");
+  return token;
+}
+
+const SYNC_TOKEN = getOrCreateSyncToken();
+
+function isValidToken(provided: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(SYNC_TOKEN);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 function initSyncDb(): DatabaseSync {
   mkdirSync(SYNC_DATA_DIR, { recursive: true });
@@ -134,6 +164,23 @@ app.use((req, res, next) => {
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") {
     res.sendStatus(204);
+    return;
+  }
+  next();
+});
+
+// Require the shared token on every API call — everything under /api/ can
+// read/write the whole vault or spend the Gemini quota. /api/health stays
+// open as a plain liveness check (leaks nothing beyond "server is up").
+app.use((req, res, next) => {
+  if (!req.path.startsWith("/api/") || req.path === "/api/health") {
+    next();
+    return;
+  }
+  const header = req.headers.authorization || "";
+  const provided = header.startsWith("Bearer ") ? header.slice(7) : "";
+  if (!provided || !isValidToken(provided)) {
+    res.status(401).json({ error: "인증 토큰이 필요합니다 (보관소 → 기기 간 동기화에서 설정)" });
     return;
   }
   next();
@@ -847,6 +894,8 @@ async function startServer() {
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`\n🔐 동기화 인증 토큰: ${SYNC_TOKEN}`);
+    console.log(`   (다른 기기의 보관소 → 기기 간 동기화 설정에 이 토큰을 입력하세요)\n`);
   });
 }
 

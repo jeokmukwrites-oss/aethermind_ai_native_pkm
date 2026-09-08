@@ -7,7 +7,7 @@ import {
   isSeededInitial,
   clearSeededInitial,
 } from './storage';
-import { getServerBaseUrl, apiPath } from './config';
+import { getServerBaseUrl, apiPath, authHeaders } from './config';
 
 export interface SyncStatus {
   state: 'idle' | 'syncing' | 'synced' | 'offline' | 'error';
@@ -65,13 +65,16 @@ export async function syncNotes(): Promise<SyncResult> {
       endpoint,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ liveNotes, deletedNotes }),
       },
       SYNC_TIMEOUT_MS
     );
 
     if (!res.ok) {
+      if (res.status === 401) {
+        throw new Error('인증 토큰이 올바르지 않습니다 (보관소 → 기기 간 동기화에서 토큰을 확인하세요)');
+      }
       throw new Error(`동기화 서버 응답 오류 (HTTP ${res.status})`);
     }
 

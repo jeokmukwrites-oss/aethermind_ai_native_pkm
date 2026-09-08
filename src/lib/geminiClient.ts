@@ -1,11 +1,11 @@
 import { Note } from '../types';
-import { apiPath } from './config';
+import { apiPath, authHeaders } from './config';
 
 export async function embedText(text: string): Promise<number[]> {
   try {
     const res = await fetch(apiPath('/api/gemini/embed'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ text }),
     });
     if (!res.ok) throw new Error('Failed to embed text');
@@ -51,7 +51,7 @@ export async function analyzeNoteWithAI(
   try {
     const res = await fetch(apiPath('/api/gemini/analyze-note'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ title, content, otherNotesSummary }),
     });
     if (!res.ok) throw new Error('Failed to analyze note');
@@ -92,7 +92,7 @@ export async function askChatRecall(
   try {
     const res = await fetch(apiPath('/api/gemini/chat-recall'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({
         query,
         contextNotes: contextNotes.map((n) => ({
@@ -130,7 +130,7 @@ export async function runAgenticScan(notes: Note[]): Promise<{
   try {
     const res = await fetch(apiPath('/api/gemini/agent-scan'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ notes }),
     });
     if (!res.ok) throw new Error('Agent scan failed');
@@ -158,7 +158,7 @@ export async function transcribeAudioBlob(blob: Blob): Promise<string> {
         const base64data = (reader.result as string).split(',')[1];
         const res = await fetch(apiPath('/api/gemini/transcribe'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({
             audioBase64: base64data,
             mimeType: blob.type || 'audio/webm',
@@ -187,7 +187,7 @@ export async function analyzeImageFile(
         const base64data = (reader.result as string).split(',')[1];
         const res = await fetch(apiPath('/api/gemini/analyze-media'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body: JSON.stringify({
             imageBase64: base64data,
             mimeType: file.type || 'image/png',
