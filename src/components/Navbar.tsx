@@ -33,13 +33,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-gradient-to-r from-stone-950 via-stone-900/95 to-stone-950 text-stone-100 border-b border-stone-800/80 shadow-md shadow-black/40 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 lg:h-16 flex items-center justify-between">
         {/* Brand */}
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500/25 via-amber-600/15 to-stone-900 border border-amber-500/40 shadow-inner shadow-amber-500/10 flex items-center justify-center text-amber-400 font-serif font-bold text-lg">
+        <div className="flex items-center space-x-2.5 sm:space-x-3">
+          <div className="w-8 h-8 lg:w-9 lg:h-9 rounded-xl bg-gradient-to-br from-amber-500/25 via-amber-600/15 to-stone-900 border border-amber-500/40 shadow-inner shadow-amber-500/10 flex items-center justify-center text-amber-400 font-serif font-bold text-base lg:text-lg">
             Æ
           </div>
-          <div>
+          <div className="hidden sm:block">
             <div className="flex items-center space-x-2">
               <span className="font-semibold tracking-tight text-white text-base">
                 AetherMind
@@ -54,8 +54,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <nav className="flex items-center space-x-1 sm:space-x-1.5">
+        {/* Tab Navigation (Desktop only - mobile uses bottom bar) */}
+        <nav className="hidden lg:flex items-center space-x-1 sm:space-x-1.5">
           <button
             id="nav-tab-editor"
             onClick={() => setActiveTab('editor')}

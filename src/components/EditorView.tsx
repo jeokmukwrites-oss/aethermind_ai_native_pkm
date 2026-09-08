@@ -67,6 +67,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const [unlockPinInput, setUnlockPinInput] = useState('');
   const [unlockPinError, setUnlockPinError] = useState<string | null>(null);
 
+  // Mobile drawer: 'list' (note list) or 'ai' (RealtimeSidebar)
+  const [mobileDrawer, setMobileDrawer] = useState<'list' | 'ai' | null>(null);
+
   // Manage Lock Modal
   const [showManageLockModal, setShowManageLockModal] = useState(false);
   const [manageTab, setManageTab] = useState<'info' | 'remove' | 'change'>('info');
@@ -444,125 +447,153 @@ export const EditorView: React.FC<EditorViewProps> = ({
       n.entities.some((e) => e.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const renderSearchAndNotesList = () => (
+    <>
+      {/* Search & Actions */}
+      <div className="p-3.5 border-b border-stone-800/80 space-y-2.5 bg-stone-950/40">
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3 top-2.5 text-stone-500" />
+          <input
+            id="input-search-notes"
+            type="text"
+            placeholder="메모 검색 또는 #태그..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 bg-gradient-to-b from-stone-950 to-stone-900/90 border border-stone-800 rounded-xl text-xs text-stone-200 placeholder-stone-500 focus:outline-hidden focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/30 shadow-inner shadow-black/50 transition-all"
+          />
+        </div>
+        <div className="flex items-center justify-between text-xs text-stone-400 px-1">
+          <span>보관된 노트 {notes.length}개</span>
+          <span className="text-[10px] text-amber-400 font-mono bg-stone-900/80 px-2 py-0.5 rounded-full border border-stone-800">로컬 IndexedDB</span>
+        </div>
+      </div>
+
+      {/* Notes List */}
+      <div className="flex-1 overflow-y-auto divide-y divide-stone-800/50">
+        {filteredNotes.map((note) => {
+          const isSelected = currentNote?.id === note.id;
+          const isLockedPin = note.isLocked && note.lockType === 'pin';
+          const isUnlocked = unlockedNoteIds.has(note.id);
+          const isLockedReadonly = note.isLocked && note.lockType === 'readonly';
+
+          return (
+            <div
+              key={note.id}
+              onClick={() => onSelectNote(note.id)}
+              className={`group p-3.5 cursor-pointer transition-all space-y-1.5 relative ${
+                isSelected
+                  ? 'bg-gradient-to-r from-amber-500/15 via-stone-850/80 to-stone-900/60 border-l-[3.5px] border-amber-500 text-white shadow-md shadow-black/30 ring-1 ring-white/5'
+                  : 'hover:bg-gradient-to-r hover:from-stone-900/70 hover:to-stone-900/30 text-stone-300 border-l-[3.5px] border-transparent'
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <h4 className="text-xs font-semibold line-clamp-1 pr-6 flex items-center space-x-1.5">
+                  {note.isLocked && (
+                    <span
+                      title={isLockedPin ? '비밀번호 잠금 보호' : '편집 보호 (Read-Only)'}
+                      className="shrink-0"
+                    >
+                      {isLockedPin ? (
+                        <Lock className="w-3 h-3 text-amber-400 inline" />
+                      ) : (
+                        <Shield className="w-3 h-3 text-sky-400 inline" />
+                      )}
+                    </span>
+                  )}
+                  <span className="truncate">{note.title || '제목 없음'}</span>
+                </h4>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setNoteToDelete({ id: note.id, title: note.title || '제목 없음' });
+                  }}
+                  title="노트 삭제"
+                  className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-rose-950 text-stone-500 hover:text-rose-400 transition-all absolute right-2 top-2 shadow-xs"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {isLockedPin && !isUnlocked ? (
+                <p className="text-[11px] text-amber-500/80 italic flex items-center space-x-1 py-0.5">
+                  <span>🔒 비밀번호로 보호된 노트</span>
+                </p>
+              ) : (
+                <p className="text-[11px] text-stone-400 line-clamp-2 leading-relaxed">
+                  {note.summary || note.content.slice(0, 90)}
+                </p>
+              )}
+
+              <div className="flex items-center justify-between pt-1 text-[10px] text-stone-500">
+                <span className="flex items-center space-x-1">
+                  <Calendar className="w-3 h-3" />
+                  <span>{note.date || note.createdAt?.split('T')[0]}</span>
+                </span>
+                {note.entities && note.entities.length > 0 && (
+                  <span className="text-amber-400/90 line-clamp-1 max-w-[120px] font-mono">
+                    #{note.entities[0]}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {filteredNotes.length === 0 && (
+          <div className="p-6 text-center text-xs text-stone-500">
+            일치하는 노트가 없습니다.
+          </div>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <div
       className={`flex-1 flex overflow-hidden bg-stone-950 text-stone-100 w-full h-full relative ${
         isDraggingLeft || isDraggingRight ? 'select-none' : ''
       }`}
     >
-      {/* Left Sidebar: Note List */}
+      {/* Left Sidebar: Note List (Desktop only, mobile -> drawer) */}
       <aside
         ref={leftAsideRef}
         style={leftWidth !== null ? { width: `${leftWidth}px` } : undefined}
-        className={`border-r border-stone-800/80 bg-gradient-to-b from-stone-900/80 via-stone-950/80 to-stone-950 flex flex-col h-full shrink-0 shadow-xl shadow-black/40 ${
+        className={`hidden lg:flex border-r border-stone-800/80 bg-gradient-to-b from-stone-900/80 via-stone-950/80 to-stone-950 flex-col h-full shrink-0 shadow-xl shadow-black/40 ${
           leftWidth === null
             ? 'w-72 sm:w-80 lg:w-[22%] xl:w-[23%] 2xl:w-[24%] min-w-[280px] max-w-[540px]'
             : 'min-w-[240px] max-w-[680px]'
         }`}
       >
-        {/* Search & Actions */}
-        <div className="p-3.5 border-b border-stone-800/80 space-y-2.5 bg-stone-950/40">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-stone-500" />
-            <input
-              id="input-search-notes"
-              type="text"
-              placeholder="메모 검색 또는 #태그..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-gradient-to-b from-stone-950 to-stone-900/90 border border-stone-800 rounded-xl text-xs text-stone-200 placeholder-stone-500 focus:outline-hidden focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/30 shadow-inner shadow-black/50 transition-all"
-            />
-          </div>
-          <div className="flex items-center justify-between text-xs text-stone-400 px-1">
-            <span>보관된 노트 {notes.length}개</span>
-            <span className="text-[10px] text-amber-400 font-mono bg-stone-900/80 px-2 py-0.5 rounded-full border border-stone-800">로컬 IndexedDB</span>
-          </div>
-        </div>
-
-        {/* Notes List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-stone-800/50">
-          {filteredNotes.map((note) => {
-            const isSelected = currentNote?.id === note.id;
-            const isLockedPin = note.isLocked && note.lockType === 'pin';
-            const isUnlocked = unlockedNoteIds.has(note.id);
-            const isLockedReadonly = note.isLocked && note.lockType === 'readonly';
-
-            return (
-              <div
-                key={note.id}
-                onClick={() => onSelectNote(note.id)}
-                className={`group p-3.5 cursor-pointer transition-all space-y-1.5 relative ${
-                  isSelected
-                    ? 'bg-gradient-to-r from-amber-500/15 via-stone-850/80 to-stone-900/60 border-l-[3.5px] border-amber-500 text-white shadow-md shadow-black/30 ring-1 ring-white/5'
-                    : 'hover:bg-gradient-to-r hover:from-stone-900/70 hover:to-stone-900/30 text-stone-300 border-l-[3.5px] border-transparent'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <h4 className="text-xs font-semibold line-clamp-1 pr-6 flex items-center space-x-1.5">
-                    {note.isLocked && (
-                      <span
-                        title={isLockedPin ? '비밀번호 잠금 보호' : '편집 보호 (Read-Only)'}
-                        className="shrink-0"
-                      >
-                        {isLockedPin ? (
-                          <Lock className="w-3 h-3 text-amber-400 inline" />
-                        ) : (
-                          <Shield className="w-3 h-3 text-sky-400 inline" />
-                        )}
-                      </span>
-                    )}
-                    <span className="truncate">{note.title || '제목 없음'}</span>
-                  </h4>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setNoteToDelete({ id: note.id, title: note.title || '제목 없음' });
-                    }}
-                    title="노트 삭제"
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-rose-950 text-stone-500 hover:text-rose-400 transition-all absolute right-2 top-2 shadow-xs"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {isLockedPin && !isUnlocked ? (
-                  <p className="text-[11px] text-amber-500/80 italic flex items-center space-x-1 py-0.5">
-                    <span>🔒 비밀번호로 보호된 노트</span>
-                  </p>
-                ) : (
-                  <p className="text-[11px] text-stone-400 line-clamp-2 leading-relaxed">
-                    {note.summary || note.content.slice(0, 90)}
-                  </p>
-                )}
-
-                <div className="flex items-center justify-between pt-1 text-[10px] text-stone-500">
-                  <span className="flex items-center space-x-1">
-                    <Calendar className="w-3 h-3" />
-                    <span>{note.date || note.createdAt?.split('T')[0]}</span>
-                  </span>
-                  {note.entities && note.entities.length > 0 && (
-                    <span className="text-amber-400/90 line-clamp-1 max-w-[120px] font-mono">
-                      #{note.entities[0]}
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {filteredNotes.length === 0 && (
-            <div className="p-6 text-center text-xs text-stone-500">
-              일치하는 노트가 없습니다.
-            </div>
-          )}
-        </div>
+        {renderSearchAndNotesList()}
       </aside>
 
-      {/* Left-to-Center Resize Handle */}
+      {/* Mobile Note List Drawer */}
+      {mobileDrawer === 'list' && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setMobileDrawer(null)}
+          />
+          <div className="relative h-full w-[85%] max-w-[380px] border-r border-stone-800/80 bg-gradient-to-b from-stone-900/95 to-stone-950 shadow-2xl shadow-black/80 animate-slide-in-left flex flex-col z-10">
+            <div className="px-4 py-3 border-b border-stone-800/80 flex items-center justify-between bg-stone-900/80">
+              <span className="text-xs font-semibold text-stone-200">노트 목록</span>
+              <button
+                onClick={() => setMobileDrawer(null)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            {renderSearchAndNotesList()}
+          </div>
+        </div>
+      )}
+
+      {/* Left-to-Center Resize Handle (Desktop only) */}
       <div
         onMouseDown={handleLeftResizeStart}
         onDoubleClick={handleResetWidths}
         title="마우스로 드래그하여 좌측 목록 너비를 조절할 수 있습니다 (더블클릭 시 전체화면 자동 반응형 복원)"
-        className={`group relative w-1.5 hover:w-2 -mx-0.75 shrink-0 z-30 cursor-col-resize flex items-center justify-center transition-colors select-none ${
+        className={`hidden lg:flex group relative w-1.5 hover:w-2 -mx-0.75 shrink-0 z-30 cursor-col-resize items-center justify-center transition-colors select-none ${
           isDraggingLeft ? 'bg-amber-500 shadow-md shadow-amber-500/50' : 'hover:bg-amber-500/70 bg-transparent'
         }`}
       >
@@ -579,8 +610,18 @@ export const EditorView: React.FC<EditorViewProps> = ({
           <>
             {/* Editor Toolbar */}
             <div className="h-14 border-b border-stone-800/80 px-6 flex items-center justify-between bg-gradient-to-r from-stone-950 via-stone-900/60 to-stone-950 shadow-xs shadow-black/30">
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-1 bg-stone-950/90 p-1 rounded-xl border border-stone-800 shadow-inner shadow-black/40">
+              {/* Toolbar top-left */}
+            <div className="flex items-center space-x-2 lg:space-x-3">
+              {/* Mobile: open note list drawer */}
+              <button
+                onClick={() => setMobileDrawer('list')}
+                className="lg:hidden p-2 rounded-xl bg-gradient-to-b from-stone-900 to-stone-950 hover:from-stone-850 hover:to-stone-900 text-stone-300 border border-stone-800 shadow-xs hover:border-stone-700 transition-all active:scale-95"
+                title="노트 목록 열기"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center space-x-1 bg-stone-950/90 p-1 rounded-xl border border-stone-800 shadow-inner shadow-black/40">
                   <button
                     id="btn-toggle-edit"
                     onClick={() => setIsPreview(false)}
@@ -620,13 +661,22 @@ export const EditorView: React.FC<EditorViewProps> = ({
               </div>
 
               {/* Right Action Buttons */}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1.5 lg:space-x-2">
                 {saveSuccessMessage && (
-                  <span className="text-xs text-emerald-400 flex items-center space-x-1 animate-fade-in font-medium">
+                  <span className="hidden md:inline text-xs text-emerald-400 flex items-center space-x-1 animate-fade-in font-medium">
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     <span>{saveSuccessMessage}</span>
                   </span>
                 )}
+
+                {/* Mobile: open AI copilot drawer */}
+                <button
+                  onClick={() => setMobileDrawer('ai')}
+                  className="lg:hidden p-2 rounded-xl bg-gradient-to-b from-amber-500/20 to-amber-950/30 hover:from-amber-500/30 hover:to-amber-900/40 text-amber-300 border border-amber-500/40 shadow-xs hover:border-amber-500/60 transition-all active:scale-95"
+                  title="AI 코파일럿 열기"
+                >
+                  <Sparkles className="w-4 h-4" />
+                </button>
 
                 <button
                   id="btn-voice-toolbar"
@@ -872,7 +922,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
           onMouseDown={handleRightResizeStart}
           onDoubleClick={handleResetWidths}
           title="마우스로 드래그하여 우측 AI 코파일럿 너비를 조절할 수 있습니다 (더블클릭 시 전체화면 자동 반응형 복원)"
-          className={`group relative w-1.5 hover:w-2 -mx-0.75 shrink-0 z-30 cursor-col-resize flex items-center justify-center transition-colors select-none ${
+          className={`hidden lg:flex group relative w-1.5 hover:w-2 -mx-0.75 shrink-0 z-30 cursor-col-resize items-center justify-center transition-colors select-none ${
             isDraggingRight ? 'bg-amber-500 shadow-md shadow-amber-500/50' : 'hover:bg-amber-500/70 bg-transparent'
           }`}
         >
@@ -884,12 +934,12 @@ export const EditorView: React.FC<EditorViewProps> = ({
         </div>
       )}
 
-      {/* Right Sidebar: Realtime RAG Copilot (masked if PIN locked and not unlocked) */}
+      {/* Right Sidebar: Realtime RAG Copilot (Desktop only, mobile -> drawer) */}
       {currentNote && isCurrentUnlocked && (
         <div
           ref={rightAsideRef}
           style={rightWidth !== null ? { width: `${rightWidth}px` } : undefined}
-          className={`shrink-0 flex flex-col h-full shadow-2xl shadow-black/50 ${
+          className={`hidden lg:flex shrink-0 flex-col h-full shadow-2xl shadow-black/50 ${
             rightWidth === null
               ? 'w-80 sm:w-96 lg:w-[26%] xl:w-[27%] 2xl:w-[28%] min-w-[340px] max-w-[640px]'
               : 'min-w-[280px] max-w-[760px]'
@@ -905,6 +955,37 @@ export const EditorView: React.FC<EditorViewProps> = ({
             isAnalyzing={isAnalyzing}
             className="w-full flex-1"
           />
+        </div>
+      )}
+
+      {/* Mobile AI Copilot Drawer */}
+      {currentNote && isCurrentUnlocked && mobileDrawer === 'ai' && (
+        <div className="lg:hidden fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setMobileDrawer(null)}
+          />
+          <div className="relative h-full w-[88%] max-w-[420px] bg-stone-950 border-l border-stone-800/80 shadow-2xl shadow-black/80 animate-slide-in-right flex flex-col z-10">
+            <div className="px-4 py-3 border-b border-stone-800/80 flex items-center justify-between bg-stone-900/80">
+              <span className="text-xs font-semibold text-stone-200">AI 코파일럿</span>
+              <button
+                onClick={() => setMobileDrawer(null)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <RealtimeSidebar
+              currentNote={currentNote}
+              relatedMatches={relatedMatches}
+              onSelectNote={onSelectNote}
+              onApproveRelation={handleApproveRelation}
+              onRejectRelation={handleRejectRelation}
+              onInsertMention={handleInsertMention}
+              isAnalyzing={isAnalyzing}
+              className="w-full flex-1"
+            />
+          </div>
         </div>
       )}
 

@@ -6,3 +6,15 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Android signing keys - NEVER commit
+*.keystore
+android/keystore.properties
+Local.properties
+android/.gradle/
+android/app/build/
+android/build/
+*.jks
+
+# Duplicate nested dir
+aethermind_ai_native_pkm/

@@ -293,17 +293,17 @@ export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => 
   return (
     <div className="flex-1 flex flex-col h-full bg-stone-950 text-stone-100 overflow-hidden relative">
       {/* Top Controls Toolbar */}
-      <div className="h-14 border-b border-stone-800 px-6 flex items-center justify-between bg-stone-900/40 z-10 backdrop-blur-xs">
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1.5 text-stone-200 text-xs font-medium">
-            <Network className="w-4 h-4 text-amber-400" />
-            <span>의미적 지식 그래프</span>
+      <div className="h-14 border-b border-stone-800 px-3 sm:px-6 flex items-center justify-between bg-stone-900/40 z-10 backdrop-blur-xs">
+        <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+          <div className="flex items-center space-x-1.5 text-stone-200 text-xs font-medium shrink-0">
+            <Network className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="hidden sm:inline">의미적 지식 그래프</span>
           </div>
 
-          <div className="h-4 w-px bg-stone-800" />
+          <div className="h-4 w-px bg-stone-800 shrink-0" />
 
           {/* Relation filter toggles */}
-          <div className="flex items-center space-x-1 text-xs">
+          <div className="flex items-center space-x-1 text-xs overflow-x-auto no-scrollbar">
             {(Object.keys(RELATION_COLORS) as RelationType[]).map((type) => {
               const info = RELATION_COLORS[type];
               const isChecked = selectedRelationTypes[type];
@@ -311,7 +311,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => 
                 <button
                   key={type}
                   onClick={() => toggleRelationType(type)}
-                  className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-all ${
+                  className={`px-2 py-0.5 rounded text-[10px] font-mono border transition-all shrink-0 ${
                     isChecked
                       ? info.bg
                       : 'bg-stone-900/60 text-stone-500 border-stone-800 opacity-60'
@@ -336,7 +336,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => 
         <svg ref={svgRef} className="w-full h-full" />
 
         {/* Floating Timeline Slider (Bottom Center) */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-stone-900/90 border border-stone-800 p-3 rounded-xl shadow-2xl backdrop-blur-md flex flex-col space-y-1.5 w-80 sm:w-96 z-10">
+        <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 bg-stone-900/90 border border-stone-800 p-3 rounded-xl shadow-2xl backdrop-blur-md flex flex-col space-y-1.5 w-[82%] max-w-sm sm:w-80 sm:max-w-none z-10">
           <div className="flex items-center justify-between text-xs">
             <span className="flex items-center space-x-1 text-stone-400 font-medium">
               <Calendar className="w-3.5 h-3.5 text-amber-400" />
@@ -363,7 +363,7 @@ export const GraphView: React.FC<GraphViewProps> = ({ notes, onSelectNote }) => 
 
         {/* Selected Node Inspector Drawer (Right Side) */}
         {selectedNode && (
-          <div className="absolute top-4 right-4 w-80 sm:w-96 bg-stone-900/95 border border-stone-800 rounded-xl p-4 shadow-2xl backdrop-blur-md z-20 space-y-3 animate-fade-in text-stone-200">
+          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 w-[calc(100%-1.5rem)] max-w-[400px] sm:w-80 sm:max-w-none max-h-[70%] overflow-y-auto bg-stone-900/95 border border-stone-800 rounded-xl p-4 shadow-2xl backdrop-blur-md z-20 space-y-3 animate-fade-in text-stone-200">
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center space-x-1.5">

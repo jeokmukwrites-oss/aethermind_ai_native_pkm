@@ -81,10 +81,10 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes }) =>
   return (
     <div className="flex-1 flex flex-col h-full bg-stone-950 text-stone-100 overflow-y-auto">
       {/* Top Header */}
-      <div className="h-14 border-b border-stone-800 px-6 flex items-center justify-between bg-stone-900/30 sticky top-0 z-10 backdrop-blur-xs">
-        <div className="flex items-center space-x-2">
-          <Database className="w-4 h-4 text-amber-400" />
-          <h3 className="text-sm font-semibold text-white">
+      <div className="h-14 border-b border-stone-800 px-3 sm:px-6 flex items-center justify-between bg-stone-900/30 sticky top-0 z-10 backdrop-blur-xs">
+        <div className="flex items-center space-x-2 min-w-0">
+          <Database className="w-4 h-4 text-amber-400 shrink-0" />
+          <h3 className="text-xs sm:text-sm font-semibold text-white truncate">
             로컬 우선(Local-First) 보관소 & 프라이버시 아키텍처
           </h3>
         </div>
@@ -102,7 +102,7 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes }) =>
         )}
       </div>
 
-      <div className="p-6 max-w-5xl w-full mx-auto space-y-8">
+      <div className="p-4 sm:p-6 max-w-5xl w-full mx-auto space-y-6 sm:space-y-8 pb-10">
         {/* Architecture Philosophy Card */}
         <div className="p-6 rounded-2xl bg-stone-900/90 border border-stone-800 space-y-4">
           <div className="flex items-center space-x-2">

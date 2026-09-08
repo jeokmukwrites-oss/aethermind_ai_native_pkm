@@ -231,8 +231,8 @@ export const RecallView: React.FC<RecallViewProps> = ({ notes, onSelectNote }) =
       </div>
 
       {/* Query Input Box */}
-      <div className="p-4 bg-stone-900 border-t border-stone-800">
-        <div className="max-w-4xl mx-auto flex items-center space-x-3">
+      <div className="p-3 sm:p-4 bg-stone-900 border-t border-stone-800 pb-[max(1rem,calc(env(safe-area-inset-bottom)+0.75rem))]">
+        <div className="max-w-4xl mx-auto flex items-center space-x-2 sm:space-x-3">
           <input
             id="input-recall-query"
             type="text"
@@ -251,9 +251,9 @@ export const RecallView: React.FC<RecallViewProps> = ({ notes, onSelectNote }) =
             id="btn-send-recall"
             onClick={() => handleSend()}
             disabled={!inputQuery.trim() || isLoading}
-            className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-semibold text-sm flex items-center space-x-1.5 transition-colors shadow-sm"
+            className="px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-stone-950 font-semibold text-sm flex items-center space-x-1.5 transition-colors shadow-sm shrink-0"
           >
-            <span>질문</span>
+            <span className="hidden sm:inline">질문</span>
             <Send className="w-4 h-4" />
           </button>
         </div>

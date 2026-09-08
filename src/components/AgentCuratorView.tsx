@@ -147,11 +147,11 @@ export const AgentCuratorView: React.FC<AgentCuratorViewProps> = ({
   return (
     <div className="flex-1 flex flex-col h-full bg-stone-950 text-stone-100 overflow-y-auto">
       {/* Top Header */}
-      <div className="h-14 border-b border-stone-800 px-6 flex items-center justify-between bg-stone-900/30 sticky top-0 z-10 backdrop-blur-xs">
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1.5 text-stone-200 text-xs font-semibold">
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>능동적 지식 큐레이터 (Autonomous Agent)</span>
+      <div className="h-14 border-b border-stone-800 px-3 sm:px-6 flex items-center justify-between bg-stone-900/30 sticky top-0 z-10 backdrop-blur-xs">
+        <div className="flex items-center space-x-2 min-w-0">
+          <div className="flex items-center space-x-1.5 text-stone-200 text-xs font-semibold min-w-0">
+            <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="truncate">능동적 지식 큐레이터</span>
           </div>
           {lastScanTime && (
             <span className="text-[11px] text-stone-500">
@@ -188,7 +188,7 @@ export const AgentCuratorView: React.FC<AgentCuratorViewProps> = ({
         </div>
       </div>
 
-      <div className="p-6 max-w-5xl w-full mx-auto space-y-8">
+      <div className="p-4 sm:p-6 max-w-5xl w-full mx-auto space-y-8 pb-10">
         {/* Section 1: Contradictions */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
@@ -196,11 +196,11 @@ export const AgentCuratorView: React.FC<AgentCuratorViewProps> = ({
               <div className="w-6 h-6 rounded-md bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/40">
                 <ShieldAlert className="w-3.5 h-3.5" />
               </div>
-              <h3 className="font-semibold text-sm text-stone-100">
-                1. 상충되는 주장 및 모순점 ({contradictions.filter((c) => !c.resolved).length}건)
+              <h3 className="font-semibold text-xs sm:text-sm text-stone-100">
+                1. 상충 주장 & 모순점 ({contradictions.filter((c) => !c.resolved).length}건)
               </h3>
             </div>
-            <span className="text-xs text-stone-500">
+            <span className="hidden md:inline text-xs text-stone-500">
               서로 반대되거나 충돌하는 두 메모를 비교하여 논리적 불일치를 해결하도록 유도합니다.
             </span>
           </div>
@@ -215,22 +215,22 @@ export const AgentCuratorView: React.FC<AgentCuratorViewProps> = ({
                     : 'bg-stone-900/90 border-rose-900/40 shadow-sm'
                 }`}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="flex items-center space-x-2 text-xs font-medium">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-stretch sm:space-x-2 space-y-2 sm:space-y-0 text-xs font-medium">
                     <button
                       onClick={() => onSelectNote(c.noteIdA)}
                       className="text-amber-400 hover:underline flex items-center space-x-1"
                     >
-                      <span>노트 A: {c.noteTitleA}</span>
-                      <ExternalLink className="w-3 h-3" />
+                      <span className="line-clamp-2">노트 A: {c.noteTitleA}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0" />
                     </button>
-                    <span className="text-rose-400 font-bold">VS</span>
+                    <span className="text-rose-400 font-bold shrink-0">VS</span>
                     <button
                       onClick={() => onSelectNote(c.noteIdB)}
                       className="text-amber-400 hover:underline flex items-center space-x-1"
                     >
-                      <span>노트 B: {c.noteTitleB}</span>
-                      <ExternalLink className="w-3 h-3" />
+                      <span className="line-clamp-2">노트 B: {c.noteTitleB}</span>
+                      <ExternalLink className="w-3 h-3 shrink-0" />
                     </button>
                   </div>
 

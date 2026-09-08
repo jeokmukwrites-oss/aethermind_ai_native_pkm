@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Note } from './types';
 import { getStoredNotes, saveNoteToDB, deleteNoteFromDB } from './lib/storage';
 import { Navbar, ActiveTab } from './components/Navbar';
+import { MobileNav } from './components/MobileNav';
 import { EditorView } from './components/EditorView';
 import { GraphView } from './components/GraphView';
 import { RecallView } from './components/RecallView';
@@ -186,7 +187,7 @@ export default function App() {
       />
 
       {/* Main Tab Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden pb-14 lg:pb-0">
         {activeTab === 'editor' && (
           <EditorView
             notes={notes}
@@ -233,6 +234,13 @@ export default function App() {
         isOpen={isImageModalOpen}
         onClose={() => setIsImageModalOpen(false)}
         onCaptureComplete={handleImageCaptureComplete}
+      />
+
+      {/* Mobile Bottom Tab Bar */}
+      <MobileNav
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        unreadAgentIssuesCount={2}
       />
     </div>
   );
