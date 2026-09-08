@@ -32,7 +32,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   unreadAgentIssuesCount,
 }) => {
   return (
-    <header className="sticky top-0 z-30 bg-gradient-to-r from-stone-950 via-stone-900/95 to-stone-950 text-stone-100 border-b border-stone-800/80 shadow-md shadow-black/40 backdrop-blur-md">
+    <header className="sticky top-0 z-30 pt-[env(safe-area-inset-top)] bg-gradient-to-r from-stone-950 via-stone-900/95 to-stone-950 text-stone-100 border-b border-stone-800/80 shadow-md shadow-black/40 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 lg:h-16 flex items-center justify-between">
         {/* Brand */}
         <div className="flex items-center space-x-2.5 sm:space-x-3">

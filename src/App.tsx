@@ -93,10 +93,17 @@ export default function App() {
     }, 2500);
   }, [runSync]);
 
-  // Native Android setup: status bar matching the app's dark theme.
+  // Native Android setup: status bar matching the app's dark theme. Android
+  // 15+ (targetSdk 35+) forces edge-to-edge and ignores setBackgroundColor,
+  // so the WebView draws under the status bar regardless — overlay is set
+  // explicitly to match that, and Navbar carries its own
+  // safe-area-inset-top padding so content isn't hidden behind it.
+  // setBackgroundColor is kept for older Android versions where it still
+  // has effect (no-op elsewhere).
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+    StatusBar.setOverlaysWebView({ overlay: true }).catch(() => {});
     StatusBar.setBackgroundColor({ color: '#1c1917' }).catch(() => {});
   }, []);
 
