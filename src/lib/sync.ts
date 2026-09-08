@@ -95,8 +95,11 @@ export async function syncNotes(): Promise<SyncResult> {
       /failed to fetch|network|timed out|load failed|fetch aborted/i.test(message);
     return {
       ok: false,
+      // Include the raw browser/WebView error alongside the friendly text —
+      // "Failed to fetch" vs a specific "net::ERR_*" code point to very
+      // different root causes and are otherwise invisible to the user.
       error: isOffline
-        ? '서버에 연결할 수 없습니다 (오프라인 또는 동기화 서버 미실행)'
+        ? `서버에 연결할 수 없습니다 (오프라인 또는 동기화 서버 미실행) [${name || 'Error'}: ${message}]`
         : message,
       serverUrl,
     };

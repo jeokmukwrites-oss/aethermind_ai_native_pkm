@@ -301,7 +301,7 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes, sync
             </button>
           </div>
 
-          <div className="flex items-center space-x-2 text-xs text-stone-400 pt-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-400 pt-1 break-words">
             {syncStatus.state === 'synced' ? (
               <>
                 <Wifi className="w-4 h-4 text-emerald-400" />
