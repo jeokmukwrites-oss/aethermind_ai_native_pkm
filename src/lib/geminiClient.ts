@@ -1,8 +1,9 @@
 import { Note } from '../types';
+import { apiPath } from './config';
 
 export async function embedText(text: string): Promise<number[]> {
   try {
-    const res = await fetch('/api/gemini/embed', {
+    const res = await fetch(apiPath('/api/gemini/embed'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -48,7 +49,7 @@ export async function analyzeNoteWithAI(
   }));
 
   try {
-    const res = await fetch('/api/gemini/analyze-note', {
+    const res = await fetch(apiPath('/api/gemini/analyze-note'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ title, content, otherNotesSummary }),
@@ -89,7 +90,7 @@ export async function askChatRecall(
   temporalShiftDetected?: boolean;
 }> {
   try {
-    const res = await fetch('/api/gemini/chat-recall', {
+    const res = await fetch(apiPath('/api/gemini/chat-recall'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -127,7 +128,7 @@ export async function runAgenticScan(notes: Note[]): Promise<{
   synthesisProposals: any[];
 }> {
   try {
-    const res = await fetch('/api/gemini/agent-scan', {
+    const res = await fetch(apiPath('/api/gemini/agent-scan'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notes }),
@@ -155,7 +156,7 @@ export async function transcribeAudioBlob(blob: Blob): Promise<string> {
     reader.onloadend = async () => {
       try {
         const base64data = (reader.result as string).split(',')[1];
-        const res = await fetch('/api/gemini/transcribe', {
+        const res = await fetch(apiPath('/api/gemini/transcribe'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -184,7 +185,7 @@ export async function analyzeImageFile(
     reader.onloadend = async () => {
       try {
         const base64data = (reader.result as string).split(',')[1];
-        const res = await fetch('/api/gemini/analyze-media', {
+        const res = await fetch(apiPath('/api/gemini/analyze-media'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

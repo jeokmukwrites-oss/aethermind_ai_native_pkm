@@ -1,13 +1,142 @@
 import express from "express";
 import path from "path";
+import { mkdirSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 
 dotenv.config();
 
+// ---------------------------------------------------------------------------
+// Device sync storage (SQLite) — server acts as merge coordinator for notes
+// across PC browser and Android app. Personal single-user: latest-wins by
+// updatedAt with deletion tombstones.
+// ---------------------------------------------------------------------------
+const SYNC_DATA_DIR = path.join(process.cwd(), "data");
+
+function initSyncDb(): DatabaseSync {
+  mkdirSync(SYNC_DATA_DIR, { recursive: true });
+  const db = new DatabaseSync(path.join(SYNC_DATA_DIR, "aethermind-sync.db"));
+  db.exec(`
+    PRAGMA journal_mode = WAL;
+    CREATE TABLE IF NOT EXISTS notes (
+      id TEXT PRIMARY KEY,
+      payload TEXT NOT NULL,
+      updated_at INTEGER NOT NULL,
+      deleted_at INTEGER
+    );
+  `);
+  return db;
+}
+
+const syncDb = initSyncDb();
+
+function parseTimestamp(value: string | number | null | undefined): number {
+  if (!value) return 0;
+  const t = typeof value === "number" ? value : new Date(value).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
+// Merge client-local state into the authoritative server state (latest-wins).
+function handleSyncMerge(
+  liveNotes: any[],
+  deletedNotes: Array<{ id: string; deletedAt: string }>
+): { notes: any[]; deletedIds: string[] } {
+  const stmtSelect = syncDb.prepare("SELECT payload, updated_at, deleted_at FROM notes WHERE id = ?");
+  const stmtUpsert = syncDb.prepare(
+    `INSERT INTO notes (id, payload, updated_at, deleted_at) VALUES (?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       payload = excluded.payload,
+       updated_at = excluded.updated_at,
+       deleted_at = excluded.deleted_at`
+  );
+  const stmtTombstone = syncDb.prepare(
+    `INSERT INTO notes (id, payload, updated_at, deleted_at) VALUES (?, '{}', 0, ?)
+     ON CONFLICT(id) DO UPDATE SET deleted_at = excluded.deleted_at`
+  );
+  const stmtMarkDeleted = syncDb.prepare("UPDATE notes SET deleted_at = ? WHERE id = ?");
+
+  syncDb.exec("BEGIN");
+  try {
+    for (const n of liveNotes || []) {
+      if (!n || !n.id) continue;
+      const updatedAt = parseTimestamp(n.updatedAt || n.createdAt);
+      const row = stmtSelect.get(n.id) as { payload: string; updated_at: number; deleted_at: number | null } | undefined;
+      const serverUpdatedAt = row ? row.updated_at : 0;
+      const serverDeletedAt = row ? row.deleted_at : null;
+
+      if (serverDeletedAt != null && updatedAt <= serverDeletedAt) {
+        // Local edit is older than the server-side deletion → keep deleted.
+        continue;
+      }
+      if (updatedAt >= serverUpdatedAt) {
+        const revive = serverDeletedAt != null && updatedAt > serverDeletedAt;
+        stmtUpsert.run(n.id, JSON.stringify(n), updatedAt, revive ? null : serverDeletedAt);
+      }
+      // else: server version is newer → keep server's copy.
+    }
+
+    for (const t of deletedNotes || []) {
+      if (!t || !t.id) continue;
+      const deletedAt = parseTimestamp(t.deletedAt);
+      const row = stmtSelect.get(t.id) as { updated_at: number; deleted_at: number | null } | undefined;
+      if (!row) {
+        stmtTombstone.run(t.id, deletedAt);
+      } else if (row.deleted_at == null) {
+        if (deletedAt >= row.updated_at) {
+          stmtMarkDeleted.run(deletedAt, t.id);
+        }
+        // else: server has newer content than the deletion → keep it alive.
+      } else if (deletedAt > row.deleted_at) {
+        stmtMarkDeleted.run(deletedAt, t.id);
+      }
+    }
+
+    syncDb.exec("COMMIT");
+  } catch (err) {
+    syncDb.exec("ROLLBACK");
+    throw err;
+  }
+
+  const rows = syncDb.prepare("SELECT id, payload, deleted_at FROM notes").all() as Array<{
+    id: string;
+    payload: string;
+    deleted_at: number | null;
+  }>;
+  const notes: any[] = [];
+  const deletedIds: string[] = [];
+  for (const r of rows) {
+    if (r.deleted_at == null) {
+      try {
+        notes.push(JSON.parse(r.payload));
+      } catch {
+        // Corrupt row — skip but keep tombstone semantics if needed.
+      }
+    } else {
+      deletedIds.push(r.id);
+    }
+  }
+  return { notes, deletedIds };
+}
+
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
+
+// The Android app (Capacitor WebView, origin "https://localhost") talks to
+// this server over the LAN from a different origin, so cross-origin requests
+// must be explicitly allowed. Personal single-user server — safe to allow any
+// origin rather than maintain an allowlist of LAN IPs that changes per network.
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
 
 app.use(express.json({ limit: "25mb" }));
 
@@ -164,6 +293,46 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     hasApiKey: !!process.env.GEMINI_API_KEY,
   });
+});
+
+// 1.5. Device sync merge endpoint
+app.post("/api/sync/merge", (req, res) => {
+  try {
+    const { liveNotes, deletedNotes } = req.body || {};
+    const result = handleSyncMerge(Array.isArray(liveNotes) ? liveNotes : [], Array.isArray(deletedNotes) ? deletedNotes : []);
+    res.json({ ...result, serverTime: new Date().toISOString() });
+  } catch (error: any) {
+    console.error("Sync merge error:", error);
+    res.status(500).json({ error: "sync merge failed" });
+  }
+});
+
+// 1.6. Read authoritative sync state (read-only pull)
+app.get("/api/sync/state", (req, res) => {
+  try {
+    const rows = syncDb.prepare("SELECT id, payload, deleted_at FROM notes").all() as Array<{
+      id: string;
+      payload: string;
+      deleted_at: number | null;
+    }>;
+    const notes: any[] = [];
+    const deletedIds: string[] = [];
+    for (const r of rows) {
+      if (r.deleted_at == null) {
+        try {
+          notes.push(JSON.parse(r.payload));
+        } catch {
+          // ignore corrupt row
+        }
+      } else {
+        deletedIds.push(r.id);
+      }
+    }
+    res.json({ notes, deletedIds, serverTime: new Date().toISOString() });
+  } catch (error: any) {
+    console.error("Sync state error:", error);
+    res.status(500).json({ error: "sync state failed" });
+  }
 });
 
 // 2. Embedding endpoint with 503-resilient fallback

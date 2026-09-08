@@ -1,15 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
 import { Note } from './types';
 import { getStoredNotes, saveNoteToDB, deleteNoteFromDB } from './lib/storage';
+import { syncNotes, SyncStatus } from './lib/sync';
 import { Navbar, ActiveTab } from './components/Navbar';
 import { MobileNav } from './components/MobileNav';
 import { EditorView } from './components/EditorView';
-import { GraphView } from './components/GraphView';
-import { RecallView } from './components/RecallView';
-import { AgentCuratorView } from './components/AgentCuratorView';
-import { VaultView } from './components/VaultView';
-import { VoiceCaptureModal } from './components/VoiceCaptureModal';
-import { ImageCaptureModal } from './components/ImageCaptureModal';
+
+// Only the editor (default tab) loads eagerly; the rest — including the
+// d3-heavy graph view — are code-split so mobile devices on slow networks
+// don't pay for them until the tab is actually opened.
+const GraphView = lazy(() => import('./components/GraphView').then((m) => ({ default: m.GraphView })));
+const RecallView = lazy(() => import('./components/RecallView').then((m) => ({ default: m.RecallView })));
+const AgentCuratorView = lazy(() =>
+  import('./components/AgentCuratorView').then((m) => ({ default: m.AgentCuratorView }))
+);
+const VaultView = lazy(() => import('./components/VaultView').then((m) => ({ default: m.VaultView })));
+const VoiceCaptureModal = lazy(() =>
+  import('./components/VoiceCaptureModal').then((m) => ({ default: m.VoiceCaptureModal }))
+);
+const ImageCaptureModal = lazy(() =>
+  import('./components/ImageCaptureModal').then((m) => ({ default: m.ImageCaptureModal }))
+);
+
+const TabFallback = () => (
+  <div className="flex-1 flex items-center justify-center bg-stone-950">
+    <div className="w-6 h-6 border-2 border-stone-700 border-t-amber-400 rounded-full animate-spin" />
+  </div>
+);
 
 export default function App() {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -19,6 +36,57 @@ export default function App() {
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
+    state: 'idle',
+    lastSyncAt: null,
+    message: '',
+  });
+  const syncTimerRef = useRef<number | null>(null);
+
+  const runSync = useCallback(
+    async (reloadAfter: boolean) => {
+      setSyncStatus((prev) => ({
+        ...prev,
+        state: 'syncing',
+        message: '동기화 진행 중...',
+      }));
+      const result = await syncNotes();
+      if (result.ok) {
+        setSyncStatus({
+          state: 'synced',
+          lastSyncAt: new Date().toISOString(),
+          message: '동기화 완료',
+        });
+        if (reloadAfter && result.notes) {
+          setNotes(result.notes);
+          setSelectedNoteId((prev) =>
+            prev && result.notes!.some((n) => n.id === prev)
+              ? prev
+              : result.notes![0]?.id ?? null
+          );
+        }
+      } else {
+        setSyncStatus({
+          state: 'offline',
+          lastSyncAt: null,
+          message: result.error || '동기화 실패',
+        });
+      }
+      return result;
+    },
+    []
+  );
+
+  // Schedule a lightweight background sync (debounced) after local changes.
+  const scheduleSync = useCallback(() => {
+    if (syncTimerRef.current !== null) {
+      window.clearTimeout(syncTimerRef.current);
+    }
+    syncTimerRef.current = window.setTimeout(() => {
+      void runSync(false);
+    }, 2500);
+  }, [runSync]);
+
   // Load notes on mount
   useEffect(() => {
     getStoredNotes().then((loaded) => {
@@ -26,7 +94,14 @@ export default function App() {
       if (loaded.length > 0 && !selectedNoteId) {
         setSelectedNoteId(loaded[0].id);
       }
+      // Reconcile with the sync server (pull authoritative state to this device).
+      void runSync(true);
     });
+    return () => {
+      if (syncTimerRef.current !== null) {
+        window.clearTimeout(syncTimerRef.current);
+      }
+    };
   }, []);
 
   const currentNote = notes.find((n) => n.id === selectedNoteId) || null;
@@ -47,6 +122,7 @@ export default function App() {
       }
       return [updatedNote, ...prev];
     });
+    scheduleSync();
   };
 
   const handleDeleteNote = async (noteId: string) => {
@@ -68,6 +144,7 @@ export default function App() {
     } catch (err) {
       console.error('Failed to delete note from DB:', err);
     }
+    scheduleSync();
   };
 
   const handleNewNote = () => {
@@ -202,39 +279,60 @@ export default function App() {
         )}
 
         {activeTab === 'graph' && (
-          <GraphView notes={notes} onSelectNote={handleSelectNote} />
+          <Suspense fallback={<TabFallback />}>
+            <GraphView notes={notes} onSelectNote={handleSelectNote} />
+          </Suspense>
         )}
 
         {activeTab === 'recall' && (
-          <RecallView notes={notes} onSelectNote={handleSelectNote} />
+          <Suspense fallback={<TabFallback />}>
+            <RecallView notes={notes} onSelectNote={handleSelectNote} />
+          </Suspense>
         )}
 
         {activeTab === 'curator' && (
-          <AgentCuratorView
-            notes={notes}
-            onSelectNote={handleSelectNote}
-            onCreateSynthesisNote={handleCreateSynthesisNote}
-          />
+          <Suspense fallback={<TabFallback />}>
+            <AgentCuratorView
+              notes={notes}
+              onSelectNote={handleSelectNote}
+              onCreateSynthesisNote={handleCreateSynthesisNote}
+            />
+          </Suspense>
         )}
 
         {activeTab === 'vault' && (
-          <VaultView notes={notes} onReloadNotes={reloadNotes} />
+          <Suspense fallback={<TabFallback />}>
+            <VaultView
+              notes={notes}
+              onReloadNotes={reloadNotes}
+              syncStatus={syncStatus}
+              onSyncNow={() => runSync(true)}
+            />
+          </Suspense>
         )}
       </div>
 
       {/* Voice Capture Modal */}
-      <VoiceCaptureModal
-        isOpen={isVoiceModalOpen}
-        onClose={() => setIsVoiceModalOpen(false)}
-        onTranscribeComplete={handleVoiceTranscribeComplete}
-      />
+      {isVoiceModalOpen && (
+        <Suspense fallback={null}>
+          <VoiceCaptureModal
+            isOpen={isVoiceModalOpen}
+            onClose={() => setIsVoiceModalOpen(false)}
+            onTranscribeComplete={handleVoiceTranscribeComplete}
+          />
+        </Suspense>
+      )}
 
       {/* Image Capture Modal */}
-      <ImageCaptureModal
-        isOpen={isImageModalOpen}
-        onClose={() => setIsImageModalOpen(false)}
-        onCaptureComplete={handleImageCaptureComplete}
-      />
+      {isImageModalOpen && (
+        <Suspense fallback={null}>
+          <ImageCaptureModal
+            isOpen={isImageModalOpen}
+            onClose={() => setIsImageModalOpen(false)}
+            onCaptureComplete={handleImageCaptureComplete}
+          />
+        </Suspense>
+      )}
 
       {/* Mobile Bottom Tab Bar */}
       <MobileNav

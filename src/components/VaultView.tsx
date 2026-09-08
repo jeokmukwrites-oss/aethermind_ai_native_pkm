@@ -11,19 +11,28 @@ import {
   Lock,
   CheckCircle,
   FileCode,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+  Server,
 } from 'lucide-react';
 import { Note } from '../types';
 import { seedInitialNotes } from '../lib/storage';
+import { SyncStatus } from '../lib/sync';
+import { getServerBaseUrl, setServerBaseUrl } from '../lib/config';
 
 interface VaultViewProps {
   notes: Note[];
   onReloadNotes: () => void;
+  syncStatus: SyncStatus;
+  onSyncNow: () => Promise<unknown> | void;
 }
 
-export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes }) => {
+export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes, syncStatus, onSyncNow }) => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [serverUrl, setUrl] = useState(getServerBaseUrl());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const totalEntities = notes.reduce((sum, n) => sum + (n.entities?.length || 0), 0);
@@ -75,6 +84,20 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes }) =>
     await seedInitialNotes();
     onReloadNotes();
     setSuccessMessage('초기 데이터베이스로 복원되었습니다.');
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
+  const handleSaveServerUrl = () => {
+    setServerBaseUrl(serverUrl);
+    setSuccessMessage('동기화 서버 주소가 저장되었습니다.');
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
+
+  const handleSyncNow = async () => {
+    setSuccessMessage('동기화를 시작합니다...');
+    await onSyncNow();
+    onReloadNotes();
+    setSuccessMessage('동기화가 완료되었습니다.');
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 
@@ -207,6 +230,84 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes }) =>
               <RotateCcw className="w-4 h-4" />
               <span>샘플 데이터셋으로 리셋</span>
             </button>
+          </div>
+        </div>
+
+        {/* Device Sync Settings */}
+        <div className="p-6 rounded-2xl bg-stone-900/90 border border-stone-800 space-y-4">
+          <div className="flex items-center space-x-2">
+            <RefreshCw className="w-5 h-5 text-sky-400" />
+            <h4 className="font-semibold text-sm text-white">기기 간 동기화 (PC ↔ 모바일)</h4>
+          </div>
+          <p className="text-xs text-stone-400 leading-relaxed">
+            PC에서 실행 중인 AetherMind 서버가 병합 코디네이터 역할을 합니다. 노트는 저장 시 자동으로 백그라운드 동기화되고,
+            충돌은 <span className="text-sky-300">최신 수정 시각(updatedAt) 기준</span>으로 자동 해결됩니다. 동기화 데이터는
+            서버의 로컬 SQLite(<span className="font-mono text-stone-300">data/aethermind-sync.db</span>)에만 기록됩니다.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-3 pt-1">
+            <div className="flex-1">
+              <label className="block text-[10px] uppercase tracking-wider text-stone-500 font-mono mb-1.5">
+                동기화 서버 주소 (모바일에서 필요 — 비우면 현재 서버와 동일)
+              </label>
+              <input
+                type="text"
+                value={serverUrl}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="예: http://192.168.0.10:3000"
+                className="w-full px-3 py-2 rounded-lg bg-stone-950/70 border border-stone-700/80 text-xs text-stone-200 placeholder-stone-600 focus:outline-none focus:ring-1 focus:ring-sky-500/60 focus:border-sky-500/60"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <button
+              id="btn-save-sync-server"
+              onClick={handleSaveServerUrl}
+              className="px-4 py-2 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 border border-stone-700 text-xs font-semibold flex items-center space-x-2 transition-colors"
+            >
+              <Server className="w-4 h-4 text-sky-400" />
+              <span>서버 주소 저장</span>
+            </button>
+
+            <button
+              id="btn-sync-now"
+              onClick={handleSyncNow}
+              disabled={syncStatus.state === 'syncing'}
+              className="px-4 py-2 rounded-lg bg-gradient-to-b from-sky-400 to-sky-500 hover:from-sky-300 hover:to-sky-400 disabled:opacity-40 text-stone-950 text-xs font-semibold flex items-center space-x-2 shadow-md shadow-sky-950/40 transition-all active:scale-[0.98]"
+            >
+              <RefreshCw className={`w-4 h-4 ${syncStatus.state === 'syncing' ? 'animate-spin' : ''}`} />
+              <span>{syncStatus.state === 'syncing' ? '동기화 중...' : '지금 동기화'}</span>
+            </button>
+          </div>
+
+          <div className="flex items-center space-x-2 text-xs text-stone-400 pt-1">
+            {syncStatus.state === 'synced' ? (
+              <>
+                <Wifi className="w-4 h-4 text-emerald-400" />
+                <span className="text-emerald-400 font-medium">동기화됨</span>
+                {syncStatus.lastSyncAt && (
+                  <span className="text-stone-500">
+                    · {new Date(syncStatus.lastSyncAt).toLocaleString()}
+                  </span>
+                )}
+              </>
+            ) : syncStatus.state === 'offline' || syncStatus.state === 'error' ? (
+              <>
+                <WifiOff className="w-4 h-4 text-rose-400" />
+                <span className="text-rose-400 font-medium">동기화 사용 불가</span>
+                {syncStatus.message && (
+                  <span className="text-stone-500">· {syncStatus.message}</span>
+                )}
+              </>
+            ) : (
+              <>
+                <Wifi className="w-4 h-4 text-stone-500" />
+                <span className="text-stone-500">
+                  {syncStatus.state === 'syncing' ? '동기화 중...' : '대기 중'}
+                </span>
+              </>
+            )}
           </div>
         </div>
 

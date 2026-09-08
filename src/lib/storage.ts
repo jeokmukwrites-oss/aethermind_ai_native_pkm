@@ -34,6 +34,8 @@ function openDB(): Promise<IDBDatabase> {
 
 // Fallback memory / localStorage cache in case iframe security blocks IndexedDB
 const STORAGE_KEY_NOTES = 'aethermind_notes_cache';
+const TOMBSTONE_KEY = 'aethermind_sync_tombstones';
+const SEEDED_FLAG_KEY = 'aethermind_seeded_initial';
 
 export async function getStoredNotes(): Promise<Note[]> {
   try {
@@ -65,7 +67,138 @@ export async function getStoredNotes(): Promise<Note[]> {
       }
     }
     localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(INITIAL_NOTES));
+    localStorage.setItem(SEEDED_FLAG_KEY, '1');
     return INITIAL_NOTES;
+  }
+}
+
+// Raw read of live notes WITHOUT seeding — used by the sync engine so a fresh
+// device never uploads the sample dataset as if it were its own vault.
+export async function getAllLiveNotesRaw(): Promise<Note[]> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(NOTES_STORE, 'readonly');
+      const store = tx.objectStore(NOTES_STORE);
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result as Note[]);
+      request.onerror = () => reject(request.error);
+    });
+  } catch (err) {
+    console.warn('IndexedDB raw read failed, using localStorage:', err);
+    const local = localStorage.getItem(STORAGE_KEY_NOTES);
+    if (local) {
+      try {
+        return JSON.parse(local);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return [];
+  }
+}
+
+// Replace the entire notes store with an authoritative snapshot (post-sync).
+export async function writeAllNotes(notes: Note[]): Promise<void> {
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(NOTES_STORE, 'readwrite');
+      const store = tx.objectStore(NOTES_STORE);
+      store.clear();
+      for (const note of notes) {
+        store.put(note);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (err) {
+    console.warn('IndexedDB snapshot write failed:', err);
+  }
+  localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(notes));
+}
+
+// Merge server-authoritative state into local storage. Compared against the
+// current local copy so that a note edited WHILE a sync was in flight is not
+// clobbered (local newer wins and will be pushed on the next sync round).
+export async function applyServerState(
+  serverNotes: Note[],
+  deletedIds: string[]
+): Promise<Note[]> {
+  const localNotes = await getAllLiveNotesRaw();
+
+  const map = new Map<string, Note>();
+  for (const n of localNotes) {
+    if (n?.id) map.set(n.id, n);
+  }
+
+  for (const s of serverNotes || []) {
+    if (!s?.id) continue;
+    const local = map.get(s.id);
+    const localUpdatedAt =
+      local && local.updatedAt ? new Date(local.updatedAt).getTime() : 0;
+    const serverUpdatedAt = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+    if (!local || serverUpdatedAt >= localUpdatedAt) {
+      map.set(s.id, s);
+    }
+  }
+
+  for (const id of deletedIds || []) {
+    map.delete(id);
+  }
+
+  const merged = Array.from(map.values());
+  await writeAllNotes(merged);
+  return merged;
+}
+
+export function recordTombstone(id: string): void {
+  try {
+    const existing = getLocalTombstones();
+    existing[id] = new Date().toISOString();
+    localStorage.setItem(TOMBSTONE_KEY, JSON.stringify(existing));
+  } catch {
+    // ignore
+  }
+}
+
+export function getLocalTombstones(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(TOMBSTONE_KEY) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+export function clearLocalTombstones(): void {
+  try {
+    localStorage.removeItem(TOMBSTONE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function markSeededInitial(): void {
+  try {
+    localStorage.setItem(SEEDED_FLAG_KEY, '1');
+  } catch {
+    // ignore
+  }
+}
+
+export function isSeededInitial(): boolean {
+  try {
+    return localStorage.getItem(SEEDED_FLAG_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function clearSeededInitial(): void {
+  try {
+    localStorage.removeItem(SEEDED_FLAG_KEY);
+  } catch {
+    // ignore
   }
 }
 
@@ -85,6 +218,7 @@ export async function seedInitialNotes(): Promise<Note[]> {
     console.warn('Could not seed to IndexedDB:', err);
   }
   localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(INITIAL_NOTES));
+  markSeededInitial();
   return INITIAL_NOTES;
 }
 
@@ -143,6 +277,10 @@ export async function deleteNoteFromDB(noteId: string): Promise<void> {
   } catch (e) {
     console.warn('localStorage delete sync failed:', e);
   }
+
+  // Record a deletion tombstone so the server-side merge can propagate the
+  // removal to other devices instead of resurrecting the note.
+  recordTombstone(noteId);
 }
 
 // Vector math and in-memory cosine similarity

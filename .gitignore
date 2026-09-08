@@ -7,6 +7,9 @@ coverage/
 .env*
 !.env.example
 
+# Local device-sync server data (user's notes) - NEVER commit
+data/
+
 # Android signing keys - NEVER commit
 *.keystore
 android/keystore.properties
