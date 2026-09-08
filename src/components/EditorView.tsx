@@ -508,7 +508,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                     setNoteToDelete({ id: note.id, title: note.title || '제목 없음' });
                   }}
                   title="노트 삭제"
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-rose-950 text-stone-500 hover:text-rose-400 transition-all absolute right-2 top-2 shadow-xs"
+                  className="opacity-100 lg:opacity-0 lg:group-hover:opacity-100 p-1 rounded-md hover:bg-rose-950 text-stone-500 hover:text-rose-400 transition-all absolute right-2 top-2 shadow-xs"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
