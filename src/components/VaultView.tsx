@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   Database,
   ShieldCheck,
@@ -20,6 +20,7 @@ import { Note } from '../types';
 import { seedInitialNotes } from '../lib/storage';
 import { SyncStatus } from '../lib/sync';
 import { getServerBaseUrl, setServerBaseUrl } from '../lib/config';
+import { useBackHandler } from '../lib/backHandler';
 
 interface VaultViewProps {
   notes: Note[];
@@ -34,6 +35,10 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes, sync
   const [showResetModal, setShowResetModal] = useState(false);
   const [serverUrl, setUrl] = useState(getServerBaseUrl());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Android hardware/gesture back button closes this modal instead of exiting the app.
+  const closeResetModal = useCallback(() => setShowResetModal(false), []);
+  useBackHandler(showResetModal, closeResetModal);
 
   const totalEntities = notes.reduce((sum, n) => sum + (n.entities?.length || 0), 0);
   const totalClaims = notes.reduce((sum, n) => sum + (n.claims?.length || 0), 0);

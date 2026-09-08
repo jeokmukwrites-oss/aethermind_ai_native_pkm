@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Search,
   Calendar,
@@ -27,6 +27,7 @@ import { Note, NoteRelation } from '../types';
 import { RealtimeSidebar } from './RealtimeSidebar';
 import { searchNotesHybrid } from '../lib/storage';
 import { analyzeNoteWithAI, embedText } from '../lib/geminiClient';
+import { useBackHandler } from '../lib/backHandler';
 
 interface EditorViewProps {
   notes: Note[];
@@ -77,6 +78,17 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const [changeNewPin, setChangeNewPin] = useState('');
   const [changeConfirmPin, setChangeConfirmPin] = useState('');
   const [manageError, setManageError] = useState<string | null>(null);
+
+  // Android hardware/gesture back button closes whichever overlay below is
+  // currently open (top-most first) instead of exiting the app.
+  const closeMobileDrawer = useCallback(() => setMobileDrawer(null), []);
+  const closeLockModal = useCallback(() => setShowLockModal(false), []);
+  const closeManageLockModal = useCallback(() => setShowManageLockModal(false), []);
+  const closeDeleteConfirm = useCallback(() => setNoteToDelete(null), []);
+  useBackHandler(mobileDrawer !== null, closeMobileDrawer);
+  useBackHandler(showLockModal, closeLockModal);
+  useBackHandler(showManageLockModal, closeManageLockModal);
+  useBackHandler(noteToDelete !== null, closeDeleteConfirm);
 
   // Local draft state for current note
   const [title, setTitle] = useState('');

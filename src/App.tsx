@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapacitorApp } from '@capacitor/app';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { Note } from './types';
 import { getStoredNotes, saveNoteToDB, deleteNoteFromDB } from './lib/storage';
 import { syncNotes, SyncStatus } from './lib/sync';
+import { consumeBackHandler } from './lib/backHandler';
 import { Navbar, ActiveTab } from './components/Navbar';
 import { MobileNav } from './components/MobileNav';
 import { EditorView } from './components/EditorView';
@@ -35,6 +39,8 @@ export default function App() {
 
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [showExitHint, setShowExitHint] = useState(false);
+  const lastBackPressRef = useRef(0);
 
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     state: 'idle',
@@ -86,6 +92,46 @@ export default function App() {
       void runSync(false);
     }, 2500);
   }, [runSync]);
+
+  // Native Android setup: status bar matching the app's dark theme.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+    StatusBar.setBackgroundColor({ color: '#1c1917' }).catch(() => {});
+  }, []);
+
+  // Hardware/gesture back button: close the top-most registered overlay
+  // (drawers/modals via useBackHandler), else fall back to tab, else
+  // require a second press within 2s to actually exit the app.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listenerPromise = CapacitorApp.addListener('backButton', () => {
+      if (consumeBackHandler()) return;
+      if (isVoiceModalOpen) {
+        setIsVoiceModalOpen(false);
+        return;
+      }
+      if (isImageModalOpen) {
+        setIsImageModalOpen(false);
+        return;
+      }
+      if (activeTab !== 'editor') {
+        setActiveTab('editor');
+        return;
+      }
+      const now = Date.now();
+      if (now - lastBackPressRef.current < 2000) {
+        CapacitorApp.exitApp();
+      } else {
+        lastBackPressRef.current = now;
+        setShowExitHint(true);
+        setTimeout(() => setShowExitHint(false), 2000);
+      }
+    });
+    return () => {
+      void listenerPromise.then((h) => h.remove());
+    };
+  }, [activeTab, isVoiceModalOpen, isImageModalOpen]);
 
   // Load notes on mount
   useEffect(() => {
@@ -340,6 +386,15 @@ export default function App() {
         setActiveTab={setActiveTab}
         unreadAgentIssuesCount={2}
       />
+
+      {/* "Press back again to exit" hint (Android hardware/gesture back) */}
+      {showExitHint && (
+        <div className="fixed bottom-20 lg:bottom-6 inset-x-0 z-50 flex justify-center pointer-events-none">
+          <div className="px-4 py-2 rounded-full bg-stone-900/95 border border-stone-700 text-stone-200 text-xs shadow-lg shadow-black/40">
+            한 번 더 누르면 종료됩니다
+          </div>
+        </div>
+      )}
     </div>
   );
 }

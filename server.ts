@@ -128,6 +128,7 @@ const PORT = Number(process.env.PORT) || 3000;
 // must be explicitly allowed. Personal single-user server — safe to allow any
 // origin rather than maintain an allowlist of LAN IPs that changes per network.
 app.use((req, res, next) => {
+  console.log(`[req] ${req.method} ${req.url} origin=${req.headers.origin || "-"} ua=${req.headers["user-agent"] || "-"}`);
   res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
