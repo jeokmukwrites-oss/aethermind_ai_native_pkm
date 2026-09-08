@@ -1,0 +1,6 @@
+[Unit]
+Description=AetherMind sync DB backup
+
+[Service]
+Type=oneshot
+ExecStart=/home/kang/aethermind_ai_native_pkm/scripts/backup-sync-db.sh

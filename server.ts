@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
+import { mergeSyncState, splitNotesAndTombstones, SyncRow } from "./server/syncMerge";
 
 dotenv.config();
 
@@ -62,18 +63,40 @@ function initSyncDb(): DatabaseSync {
 
 const syncDb = initSyncDb();
 
-function parseTimestamp(value: string | number | null | undefined): number {
-  if (!value) return 0;
-  const t = typeof value === "number" ? value : new Date(value).getTime();
-  return Number.isFinite(t) ? t : 0;
+function readFullSyncState(): Map<string, SyncRow> {
+  const rows = syncDb.prepare("SELECT id, payload, updated_at, deleted_at FROM notes").all() as Array<{
+    id: string;
+    payload: string;
+    updated_at: number;
+    deleted_at: number | null;
+  }>;
+  const state = new Map<string, SyncRow>();
+  for (const r of rows) {
+    state.set(r.id, { payload: r.payload, updatedAt: r.updated_at, deletedAt: r.deleted_at });
+  }
+  return state;
 }
 
 // Merge client-local state into the authoritative server state (latest-wins).
+// The actual merge decision lives in server/syncMerge.ts (pure, unit tested);
+// this just loads the rows it needs, applies the result, and persists it.
 function handleSyncMerge(
   liveNotes: any[],
   deletedNotes: Array<{ id: string; deletedAt: string }>
 ): { notes: any[]; deletedIds: string[] } {
+  const touchedIds = new Set<string>();
+  for (const n of liveNotes || []) if (n?.id) touchedIds.add(n.id);
+  for (const t of deletedNotes || []) if (t?.id) touchedIds.add(t.id);
+
   const stmtSelect = syncDb.prepare("SELECT payload, updated_at, deleted_at FROM notes WHERE id = ?");
+  const current = new Map<string, SyncRow>();
+  for (const id of touchedIds) {
+    const row = stmtSelect.get(id) as { payload: string; updated_at: number; deleted_at: number | null } | undefined;
+    if (row) current.set(id, { payload: row.payload, updatedAt: row.updated_at, deletedAt: row.deleted_at });
+  }
+
+  const merged = mergeSyncState(current, liveNotes, deletedNotes);
+
   const stmtUpsert = syncDb.prepare(
     `INSERT INTO notes (id, payload, updated_at, deleted_at) VALUES (?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
@@ -81,73 +104,19 @@ function handleSyncMerge(
        updated_at = excluded.updated_at,
        deleted_at = excluded.deleted_at`
   );
-  const stmtTombstone = syncDb.prepare(
-    `INSERT INTO notes (id, payload, updated_at, deleted_at) VALUES (?, '{}', 0, ?)
-     ON CONFLICT(id) DO UPDATE SET deleted_at = excluded.deleted_at`
-  );
-  const stmtMarkDeleted = syncDb.prepare("UPDATE notes SET deleted_at = ? WHERE id = ?");
 
   syncDb.exec("BEGIN");
   try {
-    for (const n of liveNotes || []) {
-      if (!n || !n.id) continue;
-      const updatedAt = parseTimestamp(n.updatedAt || n.createdAt);
-      const row = stmtSelect.get(n.id) as { payload: string; updated_at: number; deleted_at: number | null } | undefined;
-      const serverUpdatedAt = row ? row.updated_at : 0;
-      const serverDeletedAt = row ? row.deleted_at : null;
-
-      if (serverDeletedAt != null && updatedAt <= serverDeletedAt) {
-        // Local edit is older than the server-side deletion → keep deleted.
-        continue;
-      }
-      if (updatedAt >= serverUpdatedAt) {
-        const revive = serverDeletedAt != null && updatedAt > serverDeletedAt;
-        stmtUpsert.run(n.id, JSON.stringify(n), updatedAt, revive ? null : serverDeletedAt);
-      }
-      // else: server version is newer → keep server's copy.
+    for (const [id, row] of merged) {
+      stmtUpsert.run(id, row.payload, row.updatedAt, row.deletedAt);
     }
-
-    for (const t of deletedNotes || []) {
-      if (!t || !t.id) continue;
-      const deletedAt = parseTimestamp(t.deletedAt);
-      const row = stmtSelect.get(t.id) as { updated_at: number; deleted_at: number | null } | undefined;
-      if (!row) {
-        stmtTombstone.run(t.id, deletedAt);
-      } else if (row.deleted_at == null) {
-        if (deletedAt >= row.updated_at) {
-          stmtMarkDeleted.run(deletedAt, t.id);
-        }
-        // else: server has newer content than the deletion → keep it alive.
-      } else if (deletedAt > row.deleted_at) {
-        stmtMarkDeleted.run(deletedAt, t.id);
-      }
-    }
-
     syncDb.exec("COMMIT");
   } catch (err) {
     syncDb.exec("ROLLBACK");
     throw err;
   }
 
-  const rows = syncDb.prepare("SELECT id, payload, deleted_at FROM notes").all() as Array<{
-    id: string;
-    payload: string;
-    deleted_at: number | null;
-  }>;
-  const notes: any[] = [];
-  const deletedIds: string[] = [];
-  for (const r of rows) {
-    if (r.deleted_at == null) {
-      try {
-        notes.push(JSON.parse(r.payload));
-      } catch {
-        // Corrupt row — skip but keep tombstone semantics if needed.
-      }
-    } else {
-      deletedIds.push(r.id);
-    }
-  }
-  return { notes, deletedIds };
+  return splitNotesAndTombstones(readFullSyncState());
 }
 
 const app = express();
@@ -358,25 +327,8 @@ app.post("/api/sync/merge", (req, res) => {
 // 1.6. Read authoritative sync state (read-only pull)
 app.get("/api/sync/state", (req, res) => {
   try {
-    const rows = syncDb.prepare("SELECT id, payload, deleted_at FROM notes").all() as Array<{
-      id: string;
-      payload: string;
-      deleted_at: number | null;
-    }>;
-    const notes: any[] = [];
-    const deletedIds: string[] = [];
-    for (const r of rows) {
-      if (r.deleted_at == null) {
-        try {
-          notes.push(JSON.parse(r.payload));
-        } catch {
-          // ignore corrupt row
-        }
-      } else {
-        deletedIds.push(r.id);
-      }
-    }
-    res.json({ notes, deletedIds, serverTime: new Date().toISOString() });
+    const result = splitNotesAndTombstones(readFullSyncState());
+    res.json({ ...result, serverTime: new Date().toISOString() });
   } catch (error: any) {
     console.error("Sync state error:", error);
     res.status(500).json({ error: "sync state failed" });

@@ -56,7 +56,33 @@ cd android
 - **"인증 토큰이 올바르지 않습니다"** 라고 뜨면: 서버 콘솔에 출력된 토큰과 앱에 입력한 토큰이 다릅니다. 서버를 재시작해도 `data/sync-token`에 저장된 토큰은 바뀌지 않으니 그대로 다시 복사해 넣으면 됩니다.
 - 안드로이드는 기본적으로 평문(HTTP) 통신을 차단하므로, `AndroidManifest.xml`에 `android:usesCleartextTraffic="true"`가 설정되어 있습니다(로컬 LAN 전용 서버이므로 안전).
 
-## 4. 주요 기능
+## 4. 서버 상시 운영 (systemd) & 백업
+
+동기화 코디네이터 역할을 하려면 서버가 PC 재부팅 후에도, 로그인 없이도 계속 떠 있어야 합니다. `deploy/systemd/`에 준비된 유닛 파일로 사용자 systemd 서비스로 등록할 수 있습니다.
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp deploy/systemd/*.service deploy/systemd/*.timer ~/.config/systemd/user/
+# 유닛 파일의 WorkingDirectory/ExecStart 경로를 본인 환경에 맞게 확인하세요.
+systemctl --user daemon-reload
+systemctl --user enable --now aethermind.service         # 서버: 항상 실행 + 죽으면 자동 재시작
+systemctl --user enable --now aethermind-backup.timer    # 매일 자정 DB 백업
+loginctl enable-linger "$USER"                             # 로그인 안 해도 부팅 시 자동 시작
+```
+
+- 로그 확인: `journalctl --user -u aethermind.service -f`
+- 재시작: `systemctl --user restart aethermind.service`
+- `aethermind-backup.timer`는 `scripts/backup-sync-db.sh`를 매일 실행해 `data/backups/`에 스냅샷을 남기고 최근 14개만 보관합니다. 수동 실행은 `./scripts/backup-sync-db.sh`.
+
+## 5. 테스트
+
+기기 간 동기화의 핵심 로직(최신 우선 병합 + 삭제 tombstone, `server/syncMerge.ts`)에 대한 단위 테스트가 있습니다 — 버그가 나면 노트 유실로 이어질 수 있는 부분이라 가장 먼저 커버했습니다.
+
+```bash
+npm test
+```
+
+## 6. 주요 기능
 
 | 영역 | 설명 |
 | --- | --- |
@@ -66,6 +92,6 @@ cd android
 | 정리 | 자율 에이전트가 모순/오래된 노트/종합 제안을 스캔 |
 | 보관소 | 백업/복원, 통계, PC ↔ 모바일 기기 간 동기화 설정 |
 
-## 5. 스택
+## 7. 스택
 
-React 19 · TypeScript · Vite 6 · Tailwind CSS 4 · Express · Google Gemini API · Capacitor(Android) · IndexedDB(로컬 저장) · SQLite(동기화 서버) · vite-plugin-pwa
+React 19 · TypeScript · Vite 6 · Tailwind CSS 4 · Express · Google Gemini API · Capacitor(Android) · IndexedDB(로컬 저장) · SQLite(동기화 서버) · vite-plugin-pwa · Vitest
