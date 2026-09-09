@@ -1,5 +1,18 @@
 @import "tailwindcss";
 
+/* Self-hosted so the packaged Android app renders body text correctly with
+   zero network dependency (Gowun Batang stays on Google Fonts — its
+   per-glyph subsetting is a better fit for the sparse Korean headings that
+   use it than bundling a multi-MB file for a handful of short strings). */
+@font-face {
+  font-family: 'Pretendard Variable';
+  src: url('/fonts/PretendardVariable.woff2') format('woff2-variations'),
+       url('/fonts/PretendardVariable.woff2') format('woff2');
+  font-weight: 45 930;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   /* Body/UI: Pretendard — the standard for polished Korean interfaces. */
   --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Malgun Gothic', sans-serif;

@@ -16,11 +16,14 @@
     <link rel="apple-touch-icon" href="/pwa-192x192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <!-- Typography: Gowun Batang (literary Korean serif, headings/brand — matches the Æ mark)
-         + Pretendard (refined Korean-first UI sans, body/UI). -->
+         from Google Fonts (its per-glyph subsetting means the sparse Korean
+         headings on this app pull only a few KB); Pretendard (Korean-first
+         UI sans, body/UI — used everywhere) is self-hosted in /fonts so the
+         packaged Android app never depends on a network fetch for it. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+    <link rel="preload" as="font" type="font/woff2" href="/fonts/PretendardVariable.woff2" crossorigin />
     <title>AetherMind - AI Native PKM</title>
   </head>
   <body>
