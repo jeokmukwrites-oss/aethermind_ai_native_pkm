@@ -25,7 +25,10 @@ describe("getHealthyProviders", () => {
   it("moves a cooling-down provider to the back instead of dropping it", () => {
     const cooldowns = new Map([["groq", 5000]]);
     const result = getHealthyProviders(TEXT_PROVIDERS, cooldowns, 1000);
-    expect(result.map((p) => p.name)).toEqual(["mistral", "openrouter", "groq"]);
+    expect(result.map((p) => p.name)).toEqual([
+      ...TEXT_PROVIDERS.filter((p) => p.name !== "groq").map((p) => p.name),
+      "groq",
+    ]);
   });
 
   it("resets and returns everyone once all providers are cooling down", () => {

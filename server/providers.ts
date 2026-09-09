@@ -17,6 +17,10 @@ export const TEXT_PROVIDERS: FallbackProvider[] = [
   { name: "groq", envKey: "GROQ_API_KEY", baseUrl: "https://api.groq.com/openai/v1", model: "openai/gpt-oss-120b" },
   { name: "mistral", envKey: "MISTRAL_API_KEY", baseUrl: "https://api.mistral.ai/v1", model: "mistral-small-latest" },
   { name: "openrouter", envKey: "OPENROUTER_API_KEY", baseUrl: "https://openrouter.ai/api/v1", model: "nvidia/nemotron-3-super-120b-a12b:free" },
+  { name: "nvidia", envKey: "NVIDIA_API_KEY", baseUrl: "https://integrate.api.nvidia.com/v1", model: "meta/llama-3.2-11b-vision-instruct" },
+  // HF router requires "<model>:<provider>" — this specific pairing is a
+  // confirmed-free route; other providers on the same model may be paid.
+  { name: "huggingface", envKey: "HUGGINGFACE_API_KEY", baseUrl: "https://router.huggingface.co/v1", model: "Qwen/Qwen3.8-27B:ovhcloud" },
 ];
 
 // Same circuit-breaker shape as server.ts's modelCooldowns/getHealthyModels —
