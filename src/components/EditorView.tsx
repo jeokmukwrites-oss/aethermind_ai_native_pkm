@@ -16,7 +16,6 @@ import {
   Lock,
   Unlock,
   Shield,
-  ShieldCheck,
   KeyRound,
   AlertTriangle,
   RotateCcw,
@@ -837,24 +836,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
               </div>
             </div>
 
-            {/* Read-Only Protection Notification Banner */}
-            {isCurrentReadonly && (
-              <div className="bg-sky-950/40 border-b border-sky-800/50 px-8 py-3 flex items-center justify-between text-xs text-sky-200 animate-fade-in">
-                <div className="flex items-center space-x-2.5">
-                  <ShieldCheck className="w-4 h-4 text-sky-400 shrink-0" />
-                  <span>
-                    <strong>편집 보호 상태</strong>: 실수로 인한 변경이나 삭제를 방지하기 위해 읽기 전용으로 보호 중입니다.
-                  </span>
-                </div>
-                <button
-                  id="btn-unlock-readonly-banner"
-                  onClick={handleUnlockReadonly}
-                  className="px-3 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/50 font-medium text-[11px] transition-all shadow-xs"
-                >
-                  보호 해제
-                </button>
-              </div>
-            )}
 
             {/* If PIN Locked & Not Unlocked: Confidential Unlock Screen */}
             {isCurrentPinLocked && !isCurrentUnlocked ? (
