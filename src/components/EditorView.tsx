@@ -190,6 +190,22 @@ export const EditorView: React.FC<EditorViewProps> = ({
   const isCurrentUnlocked = !isCurrentPinLocked || (currentNote ? unlockedNoteIds.has(currentNote.id) : true);
   const isCurrentReadonly = isCurrentLocked && currentNote?.lockType === 'readonly';
 
+  // PIN-locked notes are meant to stay confidential until explicitly
+  // unlocked with their PIN — never leak their title/content into other
+  // notes' AI context (realtime RAG sidebar, save-time relation inference,
+  // curator scans) just because they weren't the note being edited.
+  const isConfidential = (n: Note) => !!n.isLocked && n.lockType === 'pin';
+
+  // Builds the note to persist from the CURRENT unsaved draft (title/content/
+  // date fields), not the last-saved `currentNote` — lock/unlock actions must
+  // not silently discard edits typed since the last save.
+  const withDraft = (base: Note): Note => ({
+    ...base,
+    title: title.trim() || base.title,
+    content,
+    date: date || base.date,
+  });
+
   // Realtime matches for sidebar
   const [relatedMatches, setRelatedMatches] = useState<
     Array<{ note: Note; score: number; matchReasons: string[] }>
@@ -223,7 +239,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       }
 
       // Filter out current note and any other confidential PIN-locked notes
-      const otherNotes = notes.filter((n) => n.id !== currentNote.id);
+      const otherNotes = notes.filter((n) => n.id !== currentNote.id && !isConfidential(n));
 
       // In-memory hybrid search
       const matches = searchNotesHybrid(draftText, otherNotes, currentNote.embedding, 4);
@@ -240,7 +256,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
     if (lockChoice === 'readonly') {
       const updatedNote: Note = {
-        ...currentNote,
+        ...withDraft(currentNote),
         isLocked: true,
         lockType: 'readonly',
         lockPin: undefined,
@@ -262,7 +278,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       }
 
       const updatedNote: Note = {
-        ...currentNote,
+        ...withDraft(currentNote),
         isLocked: true,
         lockType: 'pin',
         lockPin: pin,
@@ -324,7 +340,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       return;
     }
     const updatedNote: Note = {
-      ...currentNote,
+      ...withDraft(currentNote),
       isLocked: false,
       lockType: undefined,
       lockPin: undefined,
@@ -353,7 +369,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       return;
     }
     const updatedNote: Note = {
-      ...currentNote,
+      ...withDraft(currentNote),
       lockPin: nextPin,
     };
     onSaveNote(updatedNote);
@@ -380,8 +396,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
       const fullText = `${title}\n${content}`;
       const embedding = await embedText(fullText);
 
-      // 2. Call Gemini for extraction & relationship inference
-      const otherNotes = notes.filter((n) => n.id !== currentNote.id);
+      // 2. Call Gemini for extraction & relationship inference (never send
+      // confidential PIN-locked notes' content to an external AI provider)
+      const otherNotes = notes.filter((n) => n.id !== currentNote.id && !isConfidential(n));
       const aiResult = await analyzeNoteWithAI(title, content, otherNotes);
 
       // Convert suggested relations into format

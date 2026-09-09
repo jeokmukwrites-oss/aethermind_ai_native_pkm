@@ -207,6 +207,7 @@ export async function seedInitialNotes(): Promise<Note[]> {
     const db = await openDB();
     const tx = db.transaction(NOTES_STORE, 'readwrite');
     const store = tx.objectStore(NOTES_STORE);
+    store.clear();
     for (const note of INITIAL_NOTES) {
       store.put(note);
     }

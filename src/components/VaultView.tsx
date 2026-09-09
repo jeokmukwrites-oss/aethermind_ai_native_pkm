@@ -17,7 +17,7 @@ import {
   Server,
 } from 'lucide-react';
 import { Note } from '../types';
-import { seedInitialNotes } from '../lib/storage';
+import { seedInitialNotes, writeAllNotes } from '../lib/storage';
 import { SyncStatus } from '../lib/sync';
 import { getServerBaseUrl, setServerBaseUrl, getSyncToken, setSyncToken } from '../lib/config';
 import { useBackHandler } from '../lib/backHandler';
@@ -68,7 +68,7 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes, sync
       try {
         const parsed = JSON.parse(event.target?.result as string);
         if (Array.isArray(parsed)) {
-          localStorage.setItem('aethermind_notes_cache', JSON.stringify(parsed));
+          await writeAllNotes(parsed);
           onReloadNotes();
           setSuccessMessage(`성공적으로 ${parsed.length}개 노트를 가져왔습니다.`);
           setTimeout(() => setSuccessMessage(null), 3000);

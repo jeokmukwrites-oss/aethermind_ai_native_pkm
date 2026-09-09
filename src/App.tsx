@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { Note } from './types';
+import { Note, ContradictionIssue, StaleNoteIssue, SynthesisProposal } from './types';
 import { getStoredNotes, saveNoteToDB, deleteNoteFromDB } from './lib/storage';
 import { syncNotes, SyncStatus } from './lib/sync';
 import { consumeBackHandler } from './lib/backHandler';
@@ -32,6 +32,63 @@ const TabFallback = () => (
   </div>
 );
 
+// Curator (능동적 정리) demo seed data, shown until the user runs a real scan.
+// Owned here (not inside AgentCuratorView's local state) so the results
+// survive the user switching tabs — AgentCuratorView is lazy-loaded and
+// unmounts whenever the 정리 tab isn't active.
+const INITIAL_CONTRADICTIONS: ContradictionIssue[] = [
+  {
+    id: 'contra-1',
+    noteIdA: 'note-algo-risk-v1',
+    noteTitleA: '알고리즘 트레이딩 리스크 관리: 변동성 기반 동적 포지션 사이징',
+    noteIdB: 'note-algo-momentum',
+    noteTitleB: '고빈도 및 모멘텀 전략: 확실한 알파 구간에서의 레버리지 극대화',
+    explanation:
+      '노트 A는 변동성 확대 시 즉시 포지션을 50% 축소해야 한다고 주장하는 반면, 노트 B는 승률 65% 이상 구간에서 레버리지를 3배까지 공격적으로 확대해야 한다고 주장하여 직접적인 리스크 원칙 충돌이 발생합니다.',
+    suggestedResolution:
+      '8월 25일 회고 노트(note-algo-retrospective)에서 레버리지 가설의 오류가 확인되었으므로, 노트 B의 상태를 "실험 종료 및 폐기"로 업데이트하거나 노트 C의 복합 유동성 모델로 통합하세요.',
+    resolved: false,
+  },
+];
+
+const INITIAL_STALE_NOTES: StaleNoteIssue[] = [
+  {
+    id: 'stale-1',
+    noteId: 'note-local-first',
+    noteTitle: '로컬 우선(Local-First) 아키텍처와 사용자 데이터 주권',
+    reason: '작성일로부터 60일 이상 경과하였으며, "대규모 10만 개 이상 노트에서 브라우저 WASM 벡터 인덱스의 메모리 한계"에 대한 미해결 질문이 남아 있습니다.',
+    suggestedAction: '최신 IndexedDB 벤치마크 결과 또는 파이썬 로컬 백엔드 연동 계획을 메모에 추가하세요.',
+    resolved: false,
+  },
+];
+
+const INITIAL_SYNTHESIS_PROPOSALS: SynthesisProposal[] = [
+  {
+    id: 'synth-1',
+    title: '종합 보고서: 개인 지식 관리(PKM)와 LLM 자율 에이전트의 메모리 공통 모델',
+    sourceNoteIds: ['note-ai-agent-memory', 'note-pkm-philosophy', 'note-local-first'],
+    sourceNoteTitles: [
+      'LLM 자율 에이전트의 다층 메모리 아키텍처와 시맨틱 지식 그래프',
+      'AI 네이티브 PKM 시스템의 철학: 저장(Storage)에서 이해(Understanding)로',
+      '로컬 우선(Local-First) 아키텍처와 사용자 데이터 주권',
+    ],
+    synthesisSummary:
+      '분산된 세 개의 아키텍처 메모를 하나의 통합 프레임워크("인간과 AI의 하이브리드 연상 지식 메모리")로 결합한 종합 노트 제안입니다.',
+    draftContent: `# 종합 노트: 인간과 AI의 하이브리드 연상 지식 메모리
+
+## 개요
+이 문서는 다음 세 가지 개별 메모의 핵심 통찰을 하나로 통합한 종합 연구 초안입니다:
+1. **에이전트 메모리 구조**: 에피소딕(시간) + 시맨틱(의미 그래프) 계층 분리
+2. **PKM 철학**: 수동 위키링크를 대체하는 RAG 기반 지능형 연상 및 대화형 회상
+3. **로컬 우선 주권**: 브라우저 IndexedDB 기반의 클라이언트 우선 프라이버시
+
+## 통합 아키텍처 결론
+- 지식의 본질은 "정적 저장고"가 아니라 "동적으로 상호작용하는 인지적 에이전트"이다.
+- 모든 지식 단위는 시간(Date)과 의미적 엣지(인과, 모순, 확장)를 통해 스스로를 정합화해야 한다.`,
+    status: 'pending',
+  },
+];
+
 export default function App() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -53,6 +110,19 @@ export default function App() {
     message: '',
   });
   const syncTimerRef = useRef<number | null>(null);
+
+  // Agentic curator scan state — lifted up here (not local to
+  // AgentCuratorView) so results survive the user switching away from the
+  // 정리 tab and back; see the component for why.
+  const [isScanning, setIsScanning] = useState(false);
+  const [lastScanTime, setLastScanTime] = useState<string | null>(null);
+  const [contradictions, setContradictions] = useState<ContradictionIssue[]>(INITIAL_CONTRADICTIONS);
+  const [staleNotes, setStaleNotes] = useState<StaleNoteIssue[]>(INITIAL_STALE_NOTES);
+  const [synthesisProposals, setSynthesisProposals] = useState<SynthesisProposal[]>(
+    INITIAL_SYNTHESIS_PROPOSALS
+  );
+  const unreadAgentIssuesCount =
+    contradictions.filter((c) => !c.resolved).length + staleNotes.filter((s) => !s.resolved).length;
 
   const runSync = useCallback(
     async (reloadAfter: boolean) => {
@@ -327,7 +397,7 @@ export default function App() {
         onOpenVoiceModal={() => setIsVoiceModalOpen(true)}
         onOpenImageModal={() => setIsImageModalOpen(true)}
         notesCount={notes.length}
-        unreadAgentIssuesCount={2}
+        unreadAgentIssuesCount={unreadAgentIssuesCount}
       />
 
       {/* Main Tab Content */}
@@ -365,6 +435,16 @@ export default function App() {
               notes={notes}
               onSelectNote={handleSelectNote}
               onCreateSynthesisNote={handleCreateSynthesisNote}
+              isScanning={isScanning}
+              setIsScanning={setIsScanning}
+              lastScanTime={lastScanTime}
+              setLastScanTime={setLastScanTime}
+              contradictions={contradictions}
+              setContradictions={setContradictions}
+              staleNotes={staleNotes}
+              setStaleNotes={setStaleNotes}
+              synthesisProposals={synthesisProposals}
+              setSynthesisProposals={setSynthesisProposals}
             />
           </Suspense>
         )}
@@ -407,7 +487,7 @@ export default function App() {
       <MobileNav
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        unreadAgentIssuesCount={2}
+        unreadAgentIssuesCount={unreadAgentIssuesCount}
       />
 
       {/* "Press back again to exit" hint (Android hardware/gesture back) */}
