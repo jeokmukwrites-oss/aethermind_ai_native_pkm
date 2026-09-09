@@ -204,6 +204,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
       setDate(currentNote.date || new Date().toISOString().split('T')[0]);
       setUnlockPinInput('');
       setUnlockPinError(null);
+      // Read-only notes can't be edited anyway, so start on the rendered
+      // preview instead of raw, un-rendered markdown source.
+      if (currentNote.isLocked && currentNote.lockType === 'readonly') {
+        setIsPreview(true);
+      }
     }
   }, [currentNote?.id]);
 
@@ -243,6 +248,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       };
       onSaveNote(updatedNote);
       setShowLockModal(false);
+      setIsPreview(true);
       setSaveSuccessMessage('노트가 편집 보호(Read-only) 상태로 설정되었습니다.');
       setTimeout(() => setSaveSuccessMessage(null), 3000);
     } else {
@@ -281,6 +287,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       lockPin: undefined,
     };
     onSaveNote(updatedNote);
+    setIsPreview(false);
     setSaveSuccessMessage('편집 보호가 해제되었습니다. 이제 수정할 수 있습니다.');
     setTimeout(() => setSaveSuccessMessage(null), 3000);
   };
