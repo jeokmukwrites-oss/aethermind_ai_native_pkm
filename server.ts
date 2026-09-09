@@ -7,6 +7,12 @@ import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 import { mergeSyncState, splitNotesAndTombstones, SyncRow } from "./server/syncMerge";
+import {
+  generateWithProviderFallback,
+  getConfiguredTextProviders,
+  callMistralEmbedding,
+  callGroqTranscription,
+} from "./server/providers";
 
 dotenv.config();
 
@@ -246,6 +252,22 @@ async function callGeminiGenerateWithFallback(
   throw lastError;
 }
 
+// Shallow-merges a fallback provider's JSON response over the heuristic
+// result — Groq/Mistral/OpenRouter don't enforce a response schema the way
+// Gemini's responseSchema does, so a missing/malformed key falls back to the
+// heuristic's value instead of failing the whole request.
+function mergeJsonWithHeuristic<T extends object>(raw: string, heuristic: T): T {
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      return { ...heuristic, ...parsed };
+    }
+    return heuristic;
+  } catch {
+    return heuristic;
+  }
+}
+
 // Deterministic normalized embedding vector generator for offline or API downtime
 function generateMockVector(str: string, dim = 64): number[] {
   const vec = new Array(dim).fill(0);
@@ -348,34 +370,33 @@ app.post("/api/gemini/embed", async (req, res) => {
       return res.json({ embedding: generateMockVector(text || "") });
     }
 
-    if (Array.isArray(texts)) {
-      const embeddings: number[][] = [];
-      for (const itemText of texts) {
-        try {
-          const result = await ai.models.embedContent({
-            model: "gemini-embedding-2-preview",
-            contents: itemText || "empty",
-          });
-          const values = result.embeddings?.[0]?.values || [];
-          embeddings.push(values.length ? values : generateMockVector(itemText || ""));
-        } catch (embedErr) {
-          console.warn("Embedding item fallback:", embedErr);
-          embeddings.push(generateMockVector(itemText || ""));
-        }
-      }
-      return res.json({ embeddings });
-    } else {
+    const embedOne = async (itemText: string): Promise<number[]> => {
       try {
         const result = await ai.models.embedContent({
           model: "gemini-embedding-2-preview",
-          contents: text || "empty",
+          contents: itemText || "empty",
         });
-        const embedding = result.embeddings?.[0]?.values || [];
-        return res.json({ embedding: embedding.length ? embedding : generateMockVector(text || "") });
+        const values = result.embeddings?.[0]?.values || [];
+        if (values.length) return values;
+        throw new Error("empty Gemini embedding");
       } catch (embedErr) {
-        console.warn("Embedding single fallback:", embedErr);
-        return res.json({ embedding: generateMockVector(text || "") });
+        try {
+          return await callMistralEmbedding(itemText || "empty");
+        } catch (providerErr) {
+          console.warn("Embedding fallback (Gemini + Mistral both failed):", embedErr, providerErr);
+          return generateMockVector(itemText || "");
+        }
       }
+    };
+
+    if (Array.isArray(texts)) {
+      const embeddings: number[][] = [];
+      for (const itemText of texts) {
+        embeddings.push(await embedOne(itemText));
+      }
+      return res.json({ embeddings });
+    } else {
+      return res.json({ embedding: await embedOne(text) });
     }
   } catch (error: any) {
     console.error("Embedding general fallback:", error);
@@ -453,9 +474,32 @@ Requirements:
     const parsed = JSON.parse(response.text || "{}");
     return res.json(parsed);
   } catch (error: any) {
-    console.info("Analyze note AI fallback engaged due to temporary model capacity constraint.");
+    console.info("Gemini unavailable for analyze-note, trying fallback providers.");
+    const heuristic = generateHeuristicNoteAnalysis(title, content, otherNotesSummary);
+    if (getConfiguredTextProviders().length > 0) {
+      try {
+        const { text, provider } = await generateWithProviderFallback({
+          systemPrompt:
+            "You are an expert Personal Knowledge Management (PKM) Cognitive Architect. Respond ONLY with a single JSON object — no commentary, no markdown fences.",
+          userPrompt: `${prompt}\n\nRespond as a single JSON object with exactly this shape (use these exact key names, no others):
+{
+  "summary": string,
+  "entities": string[],
+  "claims": string[],
+  "openQuestions": string[],
+  "intent": string,
+  "suggestedRelations": [{ "targetNoteId": string, "targetConcept": string, "relationType": string, "explanation": string }]
+}`,
+          jsonMode: true,
+        });
+        console.info(`[Provider Failover] analyze-note served by ${provider}`);
+        return res.json(mergeJsonWithHeuristic(text, heuristic));
+      } catch (providerError) {
+        console.info("All fallback providers failed for analyze-note, using heuristic.", providerError);
+      }
+    }
     // Graceful fallback prevents 500 error from blocking user
-    return res.json(generateHeuristicNoteAnalysis(title, content, otherNotesSummary));
+    return res.json(heuristic);
   }
 });
 
@@ -514,17 +558,7 @@ User Query:
 
 Please answer with inline citations [1], [2] referencing the specific note titles and dates. If a shift in perspective or belief is observed across note dates, explicitly dedicate a section explaining how the author's viewpoint evolved.`;
 
-  try {
-    const response = await callGeminiGenerateWithFallback(ai, {
-      contents: userPrompt,
-      config: {
-        systemInstruction,
-        temperature: 0.3,
-      },
-    });
-
-    const answerText = response.text || "";
-
+  const buildAnswerResponse = (answerText: string) => {
     const citedIndices = new Set<number>();
     const matches = answerText.matchAll(/\[(\d+)\]/g);
     for (const m of matches) {
@@ -540,7 +574,7 @@ Please answer with inline citations [1], [2] referencing the specific note title
       citationNumber: idx + 1,
     }));
 
-    return res.json({
+    return {
       answer: answerText,
       citations: citations.length > 0 ? citations : (contextNotes || []).map((n: any, i: number) => ({
         noteId: n.id,
@@ -554,9 +588,34 @@ Please answer with inline citations [1], [2] referencing the specific note title
         answerText.includes("최근") ||
         query.includes("변화") ||
         query.includes("바뀐"),
+    };
+  };
+
+  try {
+    const response = await callGeminiGenerateWithFallback(ai, {
+      contents: userPrompt,
+      config: {
+        systemInstruction,
+        temperature: 0.3,
+      },
     });
+
+    return res.json(buildAnswerResponse(response.text || ""));
   } catch (error: any) {
-    console.info("Chat recall fallback engaged due to temporary model capacity constraint.");
+    console.info("Gemini unavailable for chat-recall, trying fallback providers.");
+    if (getConfiguredTextProviders().length > 0) {
+      try {
+        const { text, provider } = await generateWithProviderFallback({
+          systemPrompt: systemInstruction,
+          userPrompt,
+          temperature: 0.3,
+        });
+        console.info(`[Provider Failover] chat-recall served by ${provider}`);
+        return res.json(buildAnswerResponse(text));
+      } catch (providerError) {
+        console.info("All fallback providers failed for chat-recall, using heuristic.", providerError);
+      }
+    }
     return res.json(fallbackAnswer());
   }
 });
@@ -720,8 +779,28 @@ Output in JSON format matching the schema. Write all explanations, reasons, and 
     const parsed = JSON.parse(response.text || "{}");
     return res.json(parsed);
   } catch (error: any) {
-    console.info("Agent scan AI fallback engaged due to temporary model capacity constraint.");
-    return res.json(generateHeuristicScan());
+    console.info("Gemini unavailable for agent-scan, trying fallback providers.");
+    const heuristic = generateHeuristicScan();
+    if (getConfiguredTextProviders().length > 0) {
+      try {
+        const { text, provider } = await generateWithProviderFallback({
+          systemPrompt:
+            "You are an autonomous knowledge base curator agent. Respond ONLY with a single JSON object — no commentary, no markdown fences.",
+          userPrompt: `${prompt}\n\nRespond as a single JSON object with exactly this shape (use these exact key names, no others):
+{
+  "contradictions": [{ "noteIdA": string, "noteTitleA": string, "noteIdB": string, "noteTitleB": string, "explanation": string, "suggestedResolution": string }],
+  "staleNotes": [{ "noteId": string, "noteTitle": string, "reason": string, "suggestedAction": string }],
+  "synthesisProposals": [{ "title": string, "sourceNoteIds": string[], "sourceNoteTitles": string[], "synthesisSummary": string, "draftContent": string }]
+}`,
+          jsonMode: true,
+        });
+        console.info(`[Provider Failover] agent-scan served by ${provider}`);
+        return res.json(mergeJsonWithHeuristic(text, heuristic));
+      } catch (providerError) {
+        console.info("All fallback providers failed for agent-scan, using heuristic.", providerError);
+      }
+    }
+    return res.json(heuristic);
   }
 });
 
@@ -757,10 +836,16 @@ app.post("/api/gemini/transcribe", async (req, res) => {
 
       return res.json({ text: response.text?.trim() || "" });
     } catch (modelErr) {
-      console.info("Transcribe model fallback engaged.");
-      return res.json({
-        text: "음성 녹음 내용: [음성 인식 완료] 기록된 핵심 음성 아이디어를 텍스트로 보존하였습니다.",
-      });
+      console.info("Gemini unavailable for transcribe, trying Groq.");
+      try {
+        const text = await callGroqTranscription(audioBase64, mimeType || "audio/webm");
+        return res.json({ text: text.trim() });
+      } catch (providerErr) {
+        console.info("Groq transcription also failed, using heuristic.", providerErr);
+        return res.json({
+          text: "음성 녹음 내용: [음성 인식 완료] 기록된 핵심 음성 아이디어를 텍스트로 보존하였습니다.",
+        });
+      }
     }
   } catch (error: any) {
     console.info("Transcribe general fallback engaged.");
