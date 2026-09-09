@@ -32,7 +32,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   unreadAgentIssuesCount,
 }) => {
   return (
-    <header className="sticky top-0 z-30 pt-[env(safe-area-inset-top)] bg-gradient-to-r from-stone-950 via-stone-900/95 to-stone-950 text-stone-100 border-b border-stone-800/80 shadow-md shadow-black/40 backdrop-blur-md">
+    <header className="sticky top-0 z-30 pt-[env(safe-area-inset-top)] bg-stone-950/95 text-stone-100 border-b border-stone-800/80 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 lg:h-16 flex items-center justify-between">
         {/* Brand */}
         <div className="flex items-center space-x-2.5 sm:space-x-3">
@@ -61,7 +61,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => setActiveTab('editor')}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
               activeTab === 'editor'
-                ? 'bg-gradient-to-b from-stone-800 to-stone-850 text-amber-300 border border-stone-700/80 shadow-sm shadow-black/40 ring-1 ring-white/5'
+                ? 'bg-stone-800 text-amber-300 border border-stone-700/80 ring-1 ring-white/5'
                 : 'text-stone-400 hover:text-stone-200 hover:bg-stone-850/60'
             }`}
           >
@@ -74,7 +74,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => setActiveTab('graph')}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
               activeTab === 'graph'
-                ? 'bg-gradient-to-b from-stone-800 to-stone-850 text-amber-300 border border-stone-700/80 shadow-sm shadow-black/40 ring-1 ring-white/5'
+                ? 'bg-stone-800 text-amber-300 border border-stone-700/80 ring-1 ring-white/5'
                 : 'text-stone-400 hover:text-stone-200 hover:bg-stone-850/60'
             }`}
           >
@@ -87,7 +87,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => setActiveTab('recall')}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
               activeTab === 'recall'
-                ? 'bg-gradient-to-b from-stone-800 to-stone-850 text-amber-300 border border-stone-700/80 shadow-sm shadow-black/40 ring-1 ring-white/5'
+                ? 'bg-stone-800 text-amber-300 border border-stone-700/80 ring-1 ring-white/5'
                 : 'text-stone-400 hover:text-stone-200 hover:bg-stone-850/60'
             }`}
           >
@@ -100,7 +100,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => setActiveTab('curator')}
             className={`relative flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
               activeTab === 'curator'
-                ? 'bg-gradient-to-b from-stone-800 to-stone-850 text-amber-300 border border-stone-700/80 shadow-sm shadow-black/40 ring-1 ring-white/5'
+                ? 'bg-stone-800 text-amber-300 border border-stone-700/80 ring-1 ring-white/5'
                 : 'text-stone-400 hover:text-stone-200 hover:bg-stone-850/60'
             }`}
           >
@@ -118,7 +118,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => setActiveTab('vault')}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
               activeTab === 'vault'
-                ? 'bg-gradient-to-b from-stone-800 to-stone-850 text-amber-300 border border-stone-700/80 shadow-sm shadow-black/40 ring-1 ring-white/5'
+                ? 'bg-stone-800 text-amber-300 border border-stone-700/80 ring-1 ring-white/5'
                 : 'text-stone-400 hover:text-stone-200 hover:bg-stone-850/60'
             }`}
           >

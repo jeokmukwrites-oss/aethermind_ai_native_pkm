@@ -47,7 +47,7 @@ export const RealtimeSidebar: React.FC<RealtimeSidebarProps> = ({
   return (
     <aside
       style={style}
-      className={`border-l border-stone-800/80 bg-gradient-to-b from-stone-900/70 via-stone-950/70 to-stone-950 p-4 flex flex-col space-y-5 overflow-y-auto h-full text-stone-200 shrink-0 shadow-lg shadow-black/30 ${
+      className={`border-l border-stone-800/80 bg-stone-950 p-4 flex flex-col space-y-5 overflow-y-auto h-full text-stone-200 shrink-0 ${
         className !== undefined
           ? className
           : 'w-80 md:w-96 lg:w-[26%] xl:w-[27%] 2xl:w-[28%] min-w-[340px] max-w-[640px]'
@@ -70,7 +70,7 @@ export const RealtimeSidebar: React.FC<RealtimeSidebarProps> = ({
         </div>
 
         {/* Why better than Obsidian badge */}
-        <div className="p-3 rounded-xl bg-gradient-to-br from-stone-950 via-stone-900/60 to-stone-950 border border-stone-800/90 shadow-md shadow-black/30 text-[11px] text-stone-400 leading-relaxed ring-1 ring-white/5">
+        <div className="p-3 rounded-xl bg-stone-950 border border-stone-800/90 text-[11px] text-stone-400 leading-relaxed ring-1 ring-white/5">
           <span className="text-amber-400 font-semibold block mb-0.5">
             ✦ Obsidian 대비 차별점
           </span>
@@ -103,7 +103,7 @@ export const RealtimeSidebar: React.FC<RealtimeSidebarProps> = ({
                 return (
                   <div
                     key={rel.id}
-                    className="p-3 rounded-xl bg-gradient-to-b from-stone-900/90 via-stone-900/50 to-stone-950/90 border border-stone-800/90 space-y-2 transition-all hover:border-stone-700/90 shadow-md shadow-black/40 ring-1 ring-white/5"
+                    className="p-3 rounded-xl bg-stone-900/70 border border-stone-800/90 space-y-2 transition-all hover:border-stone-700/90 shadow-md shadow-black/40 ring-1 ring-white/5"
                   >
                     <div className="flex items-center justify-between">
                       <span
@@ -162,7 +162,7 @@ export const RealtimeSidebar: React.FC<RealtimeSidebarProps> = ({
             {relatedMatches.map(({ note, score, matchReasons }) => (
               <div
                 key={note.id}
-                className="p-3.5 rounded-xl bg-gradient-to-b from-stone-900/90 via-stone-900/50 to-stone-950/90 border border-stone-800/90 hover:border-stone-700/90 hover:shadow-lg hover:shadow-black/50 transition-all space-y-2 group ring-1 ring-white/5"
+                className="p-3.5 rounded-xl bg-stone-900/70 border border-stone-800/90 hover:border-stone-700/90 hover:shadow-lg hover:shadow-black/50 transition-all space-y-2 group ring-1 ring-white/5"
               >
                 <div className="flex items-start justify-between">
                   <span className="text-xs font-semibold text-stone-200 line-clamp-1 group-hover:text-amber-300 transition-colors">
@@ -227,7 +227,7 @@ export const RealtimeSidebar: React.FC<RealtimeSidebarProps> = ({
               currentNote.entities.map((ent, idx) => (
                 <span
                   key={idx}
-                  className="text-xs px-2.5 py-0.5 rounded-full bg-gradient-to-b from-stone-800 to-stone-850 text-stone-200 border border-stone-700/80 shadow-xs"
+                  className="text-xs px-2.5 py-0.5 rounded-full bg-stone-800 text-stone-200 border border-stone-700/80"
                 >
                   #{ent}
                 </span>

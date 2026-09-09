@@ -18,7 +18,7 @@ const MOBILE_TABS: Array<{ id: ActiveTab; label: string; icon: React.ElementType
 
 export const MobileNav: React.FC<MobileNavProps> = ({ activeTab, setActiveTab, unreadAgentIssuesCount }) => {
   return (
-    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-gradient-to-t from-stone-950 via-stone-900/95 to-stone-900/90 border-t border-stone-800/80 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+    <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-stone-950/95 border-t border-stone-800/80 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
       <div className="flex items-stretch justify-around px-1">
         {MOBILE_TABS.map((tab) => {
           const isActive = activeTab === tab.id;

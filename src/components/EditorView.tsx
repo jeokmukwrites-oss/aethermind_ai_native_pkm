@@ -479,7 +479,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
             placeholder="메모 검색 또는 #태그..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-gradient-to-b from-stone-950 to-stone-900/90 border border-stone-800 rounded-xl text-xs text-stone-200 placeholder-stone-500 focus:outline-hidden focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/30 shadow-inner shadow-black/50 transition-all"
+            className="w-full pl-9 pr-3 py-2 bg-stone-950 border border-stone-800 rounded-xl text-xs text-stone-200 placeholder-stone-500 focus:outline-hidden focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/30 transition-all"
           />
         </div>
         <div className="flex items-center justify-between text-xs text-stone-400 px-1">
@@ -502,8 +502,8 @@ export const EditorView: React.FC<EditorViewProps> = ({
               onClick={() => onSelectNote(note.id)}
               className={`group p-3.5 cursor-pointer transition-all space-y-1.5 relative ${
                 isSelected
-                  ? 'bg-gradient-to-r from-amber-500/15 via-stone-850/80 to-stone-900/60 border-l-[3.5px] border-amber-500 text-white shadow-md shadow-black/30 ring-1 ring-white/5'
-                  : 'hover:bg-gradient-to-r hover:from-stone-900/70 hover:to-stone-900/30 text-stone-300 border-l-[3.5px] border-transparent'
+                  ? 'bg-amber-500/10 border-l-[3.5px] border-amber-500 text-white ring-1 ring-white/5'
+                  : 'hover:bg-stone-900/60 text-stone-300 border-l-[3.5px] border-transparent'
               }`}
             >
               <div className="flex items-start justify-between">
@@ -565,7 +565,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
         )}
         {notes.length === 0 && (
           <div className="p-8 text-center space-y-3">
-            <div className="w-12 h-12 mx-auto rounded-2xl bg-gradient-to-b from-stone-850 to-stone-900 border border-stone-800 flex items-center justify-center text-amber-400/80 shadow-lg shadow-black/40 ring-1 ring-white/5">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-stone-900 border border-stone-800 flex items-center justify-center text-amber-400/80 shadow-lg shadow-black/40 ring-1 ring-white/5">
               <Edit3 className="w-5 h-5" />
             </div>
             <p className="text-xs text-stone-500 leading-relaxed">
@@ -593,7 +593,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       <aside
         ref={leftAsideRef}
         style={leftWidth !== null ? { width: `${leftWidth}px` } : undefined}
-        className={`hidden lg:flex border-r border-stone-800/80 bg-gradient-to-b from-stone-900/80 via-stone-950/80 to-stone-950 flex-col h-full shrink-0 shadow-xl shadow-black/40 ${
+        className={`hidden lg:flex border-r border-stone-800/80 bg-stone-950 flex-col h-full shrink-0 ${
           leftWidth === null
             ? 'w-72 sm:w-80 lg:w-[22%] xl:w-[23%] 2xl:w-[24%] min-w-[280px] max-w-[540px]'
             : 'min-w-[240px] max-w-[680px]'
@@ -637,13 +637,13 @@ export const EditorView: React.FC<EditorViewProps> = ({
         {currentNote ? (
           <>
             {/* Editor Toolbar */}
-            <div className="border-b border-stone-800/80 px-3 lg:px-6 py-2 lg:h-14 lg:py-0 flex flex-wrap items-center gap-2 justify-between bg-gradient-to-r from-stone-950 via-stone-900/60 to-stone-950 shadow-xs shadow-black/30">
+            <div className="border-b border-stone-800/80 px-3 lg:px-6 py-2 lg:h-14 lg:py-0 flex flex-wrap items-center gap-2 justify-between bg-stone-950">
               {/* Toolbar top-left */}
             <div className="flex items-center space-x-2 lg:space-x-3 min-w-0">
               {/* Mobile: back to note list screen */}
               <button
                 onClick={onBackToList}
-                className="lg:hidden p-2 rounded-xl bg-gradient-to-b from-stone-900 to-stone-950 hover:from-stone-850 hover:to-stone-900 text-stone-300 border border-stone-800 shadow-xs hover:border-stone-700 transition-all active:scale-95 shrink-0"
+                className="lg:hidden p-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800 shadow-xs hover:border-stone-700 transition-all active:scale-95 shrink-0"
                 title="노트 목록으로"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -655,7 +655,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                     onClick={() => setIsPreview(false)}
                     className={`flex items-center space-x-1 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                       !isPreview
-                        ? 'bg-gradient-to-b from-stone-800 to-stone-850 text-amber-300 shadow-sm border border-stone-700/60'
+                        ? 'bg-stone-800 text-amber-300 border border-stone-700/60'
                         : 'text-stone-400 hover:text-stone-200'
                     }`}
                   >
@@ -667,7 +667,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                     onClick={() => setIsPreview(true)}
                     className={`flex items-center space-x-1 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                       isPreview
-                        ? 'bg-gradient-to-b from-stone-800 to-stone-850 text-amber-300 shadow-sm border border-stone-700/60'
+                        ? 'bg-stone-800 text-amber-300 border border-stone-700/60'
                         : 'text-stone-400 hover:text-stone-200'
                     }`}
                   >
@@ -700,7 +700,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                 {/* Mobile: open AI copilot drawer */}
                 <button
                   onClick={() => setIsAiDrawerOpen(true)}
-                  className="lg:hidden p-2 rounded-xl bg-gradient-to-b from-amber-500/20 to-amber-950/30 hover:from-amber-500/30 hover:to-amber-900/40 text-amber-300 border border-amber-500/40 shadow-xs hover:border-amber-500/60 transition-all active:scale-95"
+                  className="lg:hidden p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 hover:border-amber-500/60 transition-all active:scale-95"
                   title="AI 코파일럿 열기"
                 >
                   <Sparkles className="w-4 h-4" />
@@ -709,7 +709,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                 <button
                   id="btn-voice-toolbar"
                   onClick={onOpenVoiceModal}
-                  className="p-2 rounded-xl bg-gradient-to-b from-stone-900 to-stone-950 hover:from-stone-850 hover:to-stone-900 text-stone-300 border border-stone-800 shadow-xs hover:border-stone-700 hover:shadow-md transition-all active:scale-95"
+                  className="p-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800 shadow-xs hover:border-stone-700 hover:shadow-md transition-all active:scale-95"
                   title="음성 메모 캡처"
                 >
                   <Mic className="w-4 h-4" />
@@ -718,7 +718,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                 <button
                   id="btn-image-toolbar"
                   onClick={onOpenImageModal}
-                  className="p-2 rounded-xl bg-gradient-to-b from-stone-900 to-stone-950 hover:from-stone-850 hover:to-stone-900 text-stone-300 border border-stone-800 shadow-xs hover:border-stone-700 hover:shadow-md transition-all active:scale-95"
+                  className="p-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800 shadow-xs hover:border-stone-700 hover:shadow-md transition-all active:scale-95"
                   title="이미지/도표 지식 캡처"
                 >
                   <ImageIcon className="w-4 h-4" />
@@ -749,9 +749,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   className={`p-2 rounded-xl border text-xs transition-all flex items-center space-x-1.5 shadow-xs hover:shadow-md active:scale-95 ${
                     isCurrentLocked
                       ? currentNote.lockType === 'pin'
-                        ? 'bg-gradient-to-b from-amber-500/25 to-amber-950/40 text-amber-300 border-amber-500/60 hover:bg-amber-500/30 ring-1 ring-amber-500/30'
-                        : 'bg-gradient-to-b from-sky-500/25 to-sky-950/40 text-sky-300 border-sky-500/60 hover:bg-sky-500/30 ring-1 ring-sky-500/30'
-                      : 'bg-gradient-to-b from-stone-900 to-stone-950 hover:from-stone-850 hover:to-stone-900 text-stone-400 hover:text-stone-200 border-stone-800'
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 hover:bg-amber-500/30 ring-1 ring-amber-500/30'
+                        : 'bg-sky-500/20 text-sky-300 border-sky-500/60 hover:bg-sky-500/30 ring-1 ring-sky-500/30'
+                      : 'bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-stone-200 border-stone-800'
                   }`}
                   title={
                     !isCurrentLocked
@@ -784,7 +784,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                 {(leftWidth !== null || rightWidth !== null) && (
                   <button
                     onClick={handleResetWidths}
-                    className="p-2 rounded-xl bg-gradient-to-b from-stone-900 to-stone-950 hover:from-stone-850 hover:to-stone-900 text-amber-400/90 hover:text-amber-300 border border-stone-800 text-xs flex items-center space-x-1 transition-all shadow-xs"
+                    className="p-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-400/90 hover:text-amber-300 border border-stone-800 text-xs flex items-center space-x-1 transition-all shadow-xs"
                     title="전체화면 자동 반응형 비율로 복원 (더블클릭 시에도 복원)"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -797,7 +797,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   onClick={() => {
                     setNoteToDelete({ id: currentNote.id, title: currentNote.title || '제목 없음' });
                   }}
-                  className="p-2 rounded-xl bg-gradient-to-b from-stone-900 to-stone-950 hover:from-rose-950 hover:to-stone-900 text-stone-400 hover:text-rose-400 border border-stone-800 text-xs transition-all shadow-xs"
+                  className="p-2 rounded-xl bg-stone-900 hover:bg-rose-950 text-stone-400 hover:text-rose-400 border border-stone-800 text-xs transition-all"
                   title="노트 삭제"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -832,7 +832,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
             {/* Read-Only Protection Notification Banner */}
             {isCurrentReadonly && (
-              <div className="bg-gradient-to-r from-sky-950/60 via-stone-900/80 to-sky-950/60 border-b border-sky-800/50 px-8 py-3 flex items-center justify-between text-xs text-sky-200 animate-fade-in shadow-inner shadow-sky-950/40">
+              <div className="bg-sky-950/40 border-b border-sky-800/50 px-8 py-3 flex items-center justify-between text-xs text-sky-200 animate-fade-in">
                 <div className="flex items-center space-x-2.5">
                   <ShieldCheck className="w-4 h-4 text-sky-400 shrink-0" />
                   <span>
@@ -851,9 +851,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
             {/* If PIN Locked & Not Unlocked: Confidential Unlock Screen */}
             {isCurrentPinLocked && !isCurrentUnlocked ? (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 bg-gradient-to-b from-stone-950/80 via-stone-900/20 to-stone-950/90">
-                <div className="max-w-md w-full p-8 bg-gradient-to-b from-stone-900/95 to-stone-950/95 border border-stone-800/90 rounded-2xl text-center space-y-6 shadow-2xl shadow-black/80 ring-1 ring-white/5 animate-fade-in">
-                  <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-950/40 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-inner shadow-amber-500/20">
+              <div className="flex-1 flex flex-col items-center justify-center p-8 bg-stone-950">
+                <div className="max-w-md w-full p-8 bg-stone-900 border border-stone-800/90 rounded-2xl text-center space-y-6 shadow-2xl shadow-black/80 ring-1 ring-white/5 animate-fade-in">
+                  <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
                     <Lock className="w-8 h-8" />
                   </div>
                   <div className="space-y-2">
@@ -897,7 +897,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
                   value={title}
                   readOnly={isCurrentReadonly}
                   onChange={(e) => setTitle(e.target.value)}
-                  className={`w-full text-2xl font-bold bg-transparent text-white placeholder-stone-600 focus:outline-hidden tracking-tight ${
+                  className={`w-full text-2xl font-serif font-bold bg-transparent text-white placeholder-stone-600 focus:outline-hidden tracking-tight ${
                     isCurrentReadonly ? 'cursor-default opacity-90' : ''
                   }`}
                 />
@@ -924,12 +924,12 @@ export const EditorView: React.FC<EditorViewProps> = ({
             )}
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-4 bg-gradient-to-b from-stone-950 via-stone-900/20 to-stone-950">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-b from-stone-850 to-stone-900 border border-stone-800 flex items-center justify-center text-amber-400/80 shadow-lg shadow-black/40 ring-1 ring-white/5">
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-4 bg-stone-950">
+            <div className="w-14 h-14 rounded-2xl bg-stone-900 border border-stone-800 flex items-center justify-center text-amber-400/80 shadow-lg shadow-black/40 ring-1 ring-white/5">
               <Edit3 className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-stone-200 font-semibold text-sm">선택된 노트가 없습니다</h3>
+              <h3 className="text-stone-200 font-serif font-semibold text-base">선택된 노트가 없습니다</h3>
               <p className="text-xs text-stone-500 max-w-sm leading-relaxed">
                 왼쪽 목록에서 노트를 선택하거나 새로운 노트를 작성하여 AI 의미 파싱과 실시간 RAG 제안을 경험해보세요.
               </p>
@@ -1020,7 +1020,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       {/* Lock Setup Modal */}
       {showLockModal && currentNote && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="bg-gradient-to-b from-stone-900 via-stone-900/95 to-stone-950 border border-stone-800/90 rounded-2xl max-w-md w-full p-6 text-stone-100 shadow-2xl shadow-black/90 ring-1 ring-white/10 space-y-5 animate-fade-in">
+          <div className="bg-stone-900 border border-stone-800/90 rounded-2xl max-w-md w-full p-6 text-stone-100 shadow-2xl shadow-black/90 ring-1 ring-white/10 space-y-5 animate-fade-in">
             <div className="flex items-center space-x-2.5 text-amber-400">
               <Lock className="w-5 h-5" />
               <h3 className="font-semibold text-base text-white">노트 잠금 및 보호 설정</h3>
@@ -1139,7 +1139,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
       {/* Manage/Change PIN Lock Modal */}
       {showManageLockModal && currentNote && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="bg-gradient-to-b from-stone-900 via-stone-900/95 to-stone-950 border border-stone-800/90 rounded-2xl max-w-md w-full p-6 text-stone-100 shadow-2xl shadow-black/90 ring-1 ring-white/10 space-y-5 animate-fade-in">
+          <div className="bg-stone-900 border border-stone-800/90 rounded-2xl max-w-md w-full p-6 text-stone-100 shadow-2xl shadow-black/90 ring-1 ring-white/10 space-y-5 animate-fade-in">
             <div className="flex items-center justify-between border-b border-stone-800 pb-3">
               <div className="flex items-center space-x-2 text-amber-400">
                 <Lock className="w-5 h-5" />
@@ -1285,7 +1285,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-            <div className="bg-gradient-to-b from-stone-900 via-stone-900/95 to-stone-950 border border-stone-800/90 rounded-2xl max-w-sm w-full p-5 text-stone-100 shadow-2xl shadow-black/90 ring-1 ring-white/10 space-y-4 animate-fade-in">
+            <div className="bg-stone-900 border border-stone-800/90 rounded-2xl max-w-sm w-full p-5 text-stone-100 shadow-2xl shadow-black/90 ring-1 ring-white/10 space-y-4 animate-fade-in">
               <div className="flex items-center space-x-2 text-rose-400">
                 <Trash2 className="w-5 h-5" />
                 <h3 className="font-semibold text-base text-white">노트 삭제 확인</h3>
@@ -1293,7 +1293,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
 
               {isTargetPinLocked ? (
                 <div className="space-y-3">
-                  <div className="p-3 bg-gradient-to-br from-amber-950/50 to-stone-950 border border-amber-800/50 rounded-xl text-xs text-amber-300 space-y-1 shadow-inner shadow-amber-950/20">
+                  <div className="p-3 bg-amber-950/30 border border-amber-800/50 rounded-xl text-xs text-amber-300 space-y-1">
                     <div className="flex items-center space-x-1.5 font-semibold">
                       <Lock className="w-3.5 h-3.5 text-amber-400" />
                       <span>비밀번호로 보호된 노트입니다</span>
