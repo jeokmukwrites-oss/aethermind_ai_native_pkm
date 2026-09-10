@@ -8,9 +8,10 @@ import {
   Plus,
   Mic,
   Image as ImageIcon,
+  BookOpen,
 } from 'lucide-react';
 
-export type ActiveTab = 'editor' | 'graph' | 'recall' | 'curator' | 'vault';
+export type ActiveTab = 'editor' | 'graph' | 'recall' | 'curator' | 'digest' | 'vault';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -111,6 +112,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 {unreadAgentIssuesCount}
               </span>
             )}
+          </button>
+
+          <button
+            id="nav-tab-digest"
+            onClick={() => setActiveTab('digest')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+              activeTab === 'digest'
+                ? 'bg-stone-800 text-amber-300 border border-stone-700/80 ring-1 ring-white/5'
+                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-850/60'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>다이제스트</span>
           </button>
 
           <button

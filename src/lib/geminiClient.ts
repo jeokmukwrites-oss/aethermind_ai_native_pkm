@@ -1,4 +1,4 @@
-import { Note } from '../types';
+import { Note, Digest } from '../types';
 import { apiPath, authHeaders } from './config';
 
 export async function embedText(text: string): Promise<number[]> {
@@ -146,6 +146,63 @@ export async function runAgenticScan(notes: Note[]): Promise<{
         suggestedAction: '최근 변경점이나 실행 결과를 보강하세요.',
       })),
       synthesisProposals: [],
+    };
+  }
+}
+
+export async function generateDigest(period: 'daily' | 'weekly', notes: Note[]): Promise<Digest> {
+  const payloadNotes = notes.slice(0, 30).map((n) => ({
+    id: n.id,
+    title: n.title,
+    date: n.date,
+    createdAt: n.createdAt,
+    summary: n.summary,
+    content: n.content,
+    entities: n.entities,
+  }));
+
+  const dateLabel =
+    period === 'daily'
+      ? new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })
+      : '최근 7일간의 기록';
+
+  try {
+    const res = await fetch(apiPath('/api/gemini/digest'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ period, notes: payloadNotes }),
+    });
+    if (!res.ok) throw new Error('Failed to generate digest');
+    const data = await res.json();
+    return {
+      id: `digest-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      period,
+      dateLabel,
+      title: data.title || '사유의 시간들',
+      summary: data.summary || '이 기간의 기록들이 모여 하나의 흐름을 이룹니다.',
+      highlights: Array.isArray(data.highlights) ? data.highlights : [],
+      emotionalArc: data.emotionalArc || '차분한 몰입과 정리의 여정',
+      recurringThemes: Array.isArray(data.recurringThemes) ? data.recurringThemes : ['일상', '기록'],
+      quoteOfThePeriod: data.quoteOfThePeriod,
+      noteCount: notes.length,
+      noteIds: notes.map((n) => n.id),
+    };
+  } catch (err) {
+    console.info('Digest API fallback engaged');
+    return {
+      id: `digest-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      period,
+      dateLabel,
+      title: `${period === 'weekly' ? '주간' : '일간'} 기록의 발자취`,
+      summary: `총 ${notes.length}개의 노트가 이 기간 동안 쌓였습니다.`,
+      highlights: notes.slice(0, 3).map((n) => n.title),
+      emotionalArc: '차분한 기록과 정리의 흐름 속에서 생각이 이어짐',
+      recurringThemes: Array.from(new Set(notes.flatMap((n) => n.entities))).slice(0, 4),
+      quoteOfThePeriod: notes[0]?.content?.slice(0, 100),
+      noteCount: notes.length,
+      noteIds: notes.map((n) => n.id),
     };
   }
 }

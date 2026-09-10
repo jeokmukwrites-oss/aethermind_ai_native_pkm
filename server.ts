@@ -268,6 +268,26 @@ function mergeJsonWithHeuristic<T extends object>(raw: string, heuristic: T): T 
   }
 }
 
+// Heuristic fallback for digest generation if API encounters 503
+function generateHeuristicDigest(period: string, notes: any[]) {
+  const periodLabel = period === "weekly" ? "주간(Weekly)" : "일간(Daily)";
+  const highlights = notes.slice(0, 3).map((n: any) => (n.title ? `${n.title}: ` : "") + n.content.slice(0, 60));
+  const themes = Array.from(
+    new Set(notes.flatMap((n: any) => n.entities || []).filter(Boolean))
+  ).slice(0, 4);
+
+  return {
+    title: `${periodLabel} 기록의 발자취`,
+    summary: `총 ${notes.length}개의 노트가 이 기간 동안 쌓였습니다. 흩어진 기록들이 서로 엮여 하루(또는 한 주)의 생각을 이루고 있습니다.`,
+    highlights: highlights.length ? highlights : ["이 기간에는 기록이 충분하지 않습니다."],
+    emotionalArc: "차분한 기록과 정리의 흐름 속에서 생각이 이어짐",
+    recurringThemes: themes.length ? (themes as string[]) : ["일상", "기록", "정리"],
+    quoteOfThePeriod: notes[0]?.content?.slice(0, 100) || "기록된 생각은 사라지지 않는다.",
+    noteCount: notes.length,
+    noteIds: notes.map((n: any) => n.id),
+  };
+}
+
 // Deterministic normalized embedding vector generator for offline or API downtime
 function generateMockVector(str: string, dim = 64): number[] {
   const vec = new Array(dim).fill(0);
@@ -798,6 +818,99 @@ Output in JSON format matching the schema. Write all explanations, reasons, and 
         return res.json(mergeJsonWithHeuristic(text, heuristic));
       } catch (providerError) {
         console.info("All fallback providers failed for agent-scan, using heuristic.", providerError);
+      }
+    }
+    return res.json(heuristic);
+  }
+});
+
+// 5.5. Daily/weekly digest: a retrospective report over a note-date-filtered window
+app.post("/api/gemini/digest", async (req, res) => {
+  const { period, notes } = req.body;
+  if (!notes || !Array.isArray(notes) || notes.length === 0) {
+    return res.status(400).json({ error: "다이제스트를 생성하려면 최소 1개의 노트가 필요합니다." });
+  }
+
+  const ai = getGenAI();
+  const periodLabel = period === "weekly" ? "주간(Weekly)" : "일간(Daily)";
+  const heuristic = generateHeuristicDigest(period, notes);
+
+  if (!ai) {
+    return res.json(heuristic);
+  }
+
+  const notesSummary = notes
+    .slice(0, 30)
+    .map((n: any, idx: number) => `${idx + 1}. [${n.date || n.createdAt || ""}] ${n.title ? n.title + " — " : ""}${(n.summary || n.content || "").slice(0, 300)}`)
+    .join("\n");
+
+  const prompt = `당신은 AI 네이티브 PKM 시스템 "AetherMind"의 전담 사서이자 통찰력 있는 에디터입니다.
+사용자가 이 기간 동안 작성한 ${notes.length}개의 노트를 조망하여, ${periodLabel} 다이제스트(회고 및 통찰 리포트)를 작성해주세요.
+
+[노트 목록]
+${notesSummary}
+
+[작성 지침]
+1. title: 문학적이고 깊이 있는 제목
+2. summary: 이 기간 동안 사용자의 생각이 흘러간 궤적을 따뜻하고 지적인 어조로 풀어낸 2~3문장 요약
+3. highlights: 가장 중요하거나 흥미로운 통찰 3가지
+4. emotionalArc: 노트 내용에서 드러나는 어조/관심사의 흐름과 변화 패턴 (예: "초반의 실무적 고민에서 후반의 개념적 통합으로 수렴됨")
+5. recurringThemes: 반복적으로 등장한 핵심 주제 3~4개
+6. quoteOfThePeriod: 노트들 중 가장 인상적인 한 구절 (또는 그로부터 파생된 문장)
+모두 한국어로 작성하세요.`;
+
+  try {
+    const response = await callGeminiGenerateWithFallback(ai, {
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            summary: { type: Type.STRING },
+            highlights: { type: Type.ARRAY, items: { type: Type.STRING } },
+            emotionalArc: { type: Type.STRING },
+            recurringThemes: { type: Type.ARRAY, items: { type: Type.STRING } },
+            quoteOfThePeriod: { type: Type.STRING },
+          },
+          required: ["title", "summary", "highlights", "emotionalArc", "recurringThemes", "quoteOfThePeriod"],
+        },
+      },
+    });
+
+    const parsed = JSON.parse(response.text || "{}");
+    return res.json({
+      ...parsed,
+      noteCount: notes.length,
+      noteIds: notes.map((n: any) => n.id),
+    });
+  } catch (error: any) {
+    console.info("Gemini unavailable for digest, trying fallback providers.");
+    if (getConfiguredTextProviders().length > 0) {
+      try {
+        const { text, provider } = await generateWithProviderFallback({
+          systemPrompt:
+            "You are a thoughtful PKM librarian and editor. Respond ONLY with a single JSON object — no commentary, no markdown fences.",
+          userPrompt: `${prompt}\n\nRespond as a single JSON object with exactly this shape (use these exact key names, no others):
+{
+  "title": string,
+  "summary": string,
+  "highlights": string[],
+  "emotionalArc": string,
+  "recurringThemes": string[],
+  "quoteOfThePeriod": string
+}`,
+          jsonMode: true,
+        });
+        console.info(`[Provider Failover] digest served by ${provider}`);
+        return res.json({
+          ...mergeJsonWithHeuristic(text, heuristic),
+          noteCount: notes.length,
+          noteIds: notes.map((n: any) => n.id),
+        });
+      } catch (providerError) {
+        console.info("All fallback providers failed for digest, using heuristic.", providerError);
       }
     }
     return res.json(heuristic);

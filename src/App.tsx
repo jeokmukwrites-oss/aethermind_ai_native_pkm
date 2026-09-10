@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, Suspense, lazy } from 
 import { Capacitor } from '@capacitor/core';
 import { App as CapacitorApp } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { Note, ContradictionIssue, StaleNoteIssue, SynthesisProposal } from './types';
+import { Note, ContradictionIssue, StaleNoteIssue, SynthesisProposal, Digest } from './types';
 import { getStoredNotes, saveNoteToDB, deleteNoteFromDB } from './lib/storage';
 import { syncNotes, SyncStatus } from './lib/sync';
 import { consumeBackHandler } from './lib/backHandler';
@@ -19,6 +19,7 @@ const AgentCuratorView = lazy(() =>
   import('./components/AgentCuratorView').then((m) => ({ default: m.AgentCuratorView }))
 );
 const VaultView = lazy(() => import('./components/VaultView').then((m) => ({ default: m.VaultView })));
+const DigestView = lazy(() => import('./components/DigestView').then((m) => ({ default: m.DigestView })));
 const VoiceCaptureModal = lazy(() =>
   import('./components/VoiceCaptureModal').then((m) => ({ default: m.VoiceCaptureModal }))
 );
@@ -123,6 +124,12 @@ export default function App() {
   );
   const unreadAgentIssuesCount =
     contradictions.filter((c) => !c.resolved).length + staleNotes.filter((s) => !s.resolved).length;
+
+  // Digest results — lifted up here (not local to DigestView) so the last
+  // generated daily/weekly digest survives switching away from the
+  // 다이제스트 tab and back; see the component for why.
+  const [dailyDigest, setDailyDigest] = useState<Digest | null>(null);
+  const [weeklyDigest, setWeeklyDigest] = useState<Digest | null>(null);
 
   const runSync = useCallback(
     async (reloadAfter: boolean) => {
@@ -445,6 +452,19 @@ export default function App() {
               setStaleNotes={setStaleNotes}
               synthesisProposals={synthesisProposals}
               setSynthesisProposals={setSynthesisProposals}
+            />
+          </Suspense>
+        )}
+
+        {activeTab === 'digest' && (
+          <Suspense fallback={<TabFallback />}>
+            <DigestView
+              notes={notes}
+              onSelectNote={handleSelectNote}
+              dailyDigest={dailyDigest}
+              setDailyDigest={setDailyDigest}
+              weeklyDigest={weeklyDigest}
+              setWeeklyDigest={setWeeklyDigest}
             />
           </Suspense>
         )}

@@ -110,3 +110,18 @@ export interface GraphLink {
   relationType: RelationType;
   explanation: string;
 }
+
+export interface Digest {
+  id: string;
+  createdAt: string;
+  period: 'daily' | 'weekly';
+  dateLabel: string;
+  title: string;
+  summary: string;
+  highlights: string[];
+  emotionalArc: string;
+  recurringThemes: string[];
+  quoteOfThePeriod?: string;
+  noteCount: number;
+  noteIds: string[];
+}

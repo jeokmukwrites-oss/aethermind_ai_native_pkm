@@ -1,5 +1,5 @@
 import React from 'react';
-import { PenLine, Network, MessageSquareQuote, Sparkles, Database } from 'lucide-react';
+import { PenLine, Network, MessageSquareQuote, Sparkles, Database, BookOpen } from 'lucide-react';
 import { ActiveTab } from './Navbar';
 
 interface MobileNavProps {
@@ -13,6 +13,7 @@ const MOBILE_TABS: Array<{ id: ActiveTab; label: string; icon: React.ElementType
   { id: 'graph', label: '그래프', icon: Network },
   { id: 'recall', label: '회상', icon: MessageSquareQuote },
   { id: 'curator', label: '정리', icon: Sparkles },
+  { id: 'digest', label: '회고', icon: BookOpen },
   { id: 'vault', label: '보관소', icon: Database },
 ];
 
