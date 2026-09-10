@@ -47,7 +47,14 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes, sync
   const totalApprovedEdges = notes.reduce((sum, n) => sum + (n.approvedRelations?.length || 0), 0);
 
   const handleExportJson = () => {
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(notes, null, 2));
+    // PIN-locked notes are excluded — the export is a plain, unencrypted JSON
+    // file, so including them would leak both their content and (since the
+    // PIN itself is stored on the note) the PIN in the clear the moment the
+    // file is copied, uploaded, or synced anywhere.
+    const exportableNotes = notes.filter((n) => !(n.isLocked && n.lockType === 'pin'));
+    const lockedCount = notes.length - exportableNotes.length;
+
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportableNotes, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
     downloadAnchor.setAttribute('download', `aethermind-vault-backup-${new Date().toISOString().split('T')[0]}.json`);
@@ -55,7 +62,11 @@ export const VaultView: React.FC<VaultViewProps> = ({ notes, onReloadNotes, sync
     downloadAnchor.click();
     downloadAnchor.remove();
 
-    setSuccessMessage('보관소 백업 파일이 다운로드되었습니다.');
+    setSuccessMessage(
+      lockedCount > 0
+        ? `보관소 백업 파일이 다운로드되었습니다. (PIN 잠금 노트 ${lockedCount}개는 보호를 위해 제외됨)`
+        : '보관소 백업 파일이 다운로드되었습니다.'
+    );
     setTimeout(() => setSuccessMessage(null), 3000);
   };
 

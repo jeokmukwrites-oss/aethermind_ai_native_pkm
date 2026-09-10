@@ -21,14 +21,17 @@ interface DigestViewProps {
 }
 
 function getPeriodNotes(period: 'daily' | 'weekly', notes: Note[]): Note[] {
+  // Never send confidential PIN-locked notes' content to an external AI
+  // provider — same rule AgentCuratorView applies before its scans.
+  const scannableNotes = notes.filter((n) => !(n.isLocked && n.lockType === 'pin'));
   const todayStr = new Date().toISOString().split('T')[0];
   if (period === 'daily') {
-    return notes.filter((n) => n.date === todayStr);
+    return scannableNotes.filter((n) => n.date === todayStr);
   }
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
   const weekAgoStr = weekAgo.toISOString().split('T')[0];
-  return notes.filter((n) => n.date >= weekAgoStr);
+  return scannableNotes.filter((n) => n.date >= weekAgoStr);
 }
 
 // Digest results are owned by App (see dailyDigest/weeklyDigest there) so
